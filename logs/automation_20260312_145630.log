@@ -1,2 +1,0 @@
-2026-03-12 14:59:56,048 - logging_config - INFO - 🔍 Found 315 MHTML files to process
-2026-03-12 14:59:56,048 - logging_config - ERROR - ❌ Scraping error: 'AutomationTab' object has no attribute 'root'
