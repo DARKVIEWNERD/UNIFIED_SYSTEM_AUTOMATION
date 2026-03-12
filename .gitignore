@@ -1,5 +1,6 @@
 AUTOMATION FILE/
-log/
+logs/
 venv/
 desktop.ini
+output/
 _pycache_/
