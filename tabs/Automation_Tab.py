@@ -11,7 +11,7 @@ from tabs.base import Base
 from constants.ui import UIConstants, Colors
 from config import COUNTRIES, WEB_PLATFORMS, APP_PLATFORMS, PLATFORM_CATEGORIES, TARGET_DIR
 from logging_config import logger
-
+from utils.get_Cur_FY import get_current_year_quarter
 
 # Global stop flag
 STOP_AUTOMATION = False
@@ -443,7 +443,7 @@ class AutomationTab(Base):
         quarter_frame = ttk.Frame(main_frame)
         quarter_frame.pack(fill='x', pady=5)
         ttk.Label(quarter_frame, text="Quarter:", width=10).pack(side='left')
-        quarter_var = tk.StringVar(value="2026 Q1")
+        quarter_var = tk.StringVar(value=get_current_year_quarter())
         ttk.Entry(quarter_frame, textvariable=quarter_var, width=20).pack(side='left', padx=5)
         
         # Max rows
@@ -462,10 +462,10 @@ class AutomationTab(Base):
         ttk.Entry(output_frame, textvariable=filename_var, width=30).pack(side='left', padx=5)
         
         # Category sheets
-        ttk.Label(main_frame, text="Category sheets (comma-separated, optional):").pack(
+        ttk.Label(main_frame, text="Category sheets:").pack(
             anchor='w', pady=(10, 0))
         category_var = tk.StringVar(value="Music,Navigation,Messaging")
-        ttk.Entry(main_frame, textvariable=category_var, width=50).pack(anchor='w', pady=5)
+        ttk.Entry(main_frame, textvariable=category_var,state='disabled', width=50).pack(anchor='w', pady=5)
         
         # Buttons
         button_frame = ttk.Frame(dialog)
@@ -475,7 +475,7 @@ class AutomationTab(Base):
             dialog.destroy()
             self.execute_directory_scraping(
                 directory=self.scrape_directory.get(),
-                quarter=quarter_var.get().strip(),
+                quarter= quarter_var.get().strip() or get_current_year_quarter(),
                 max_rows=max_rows_var.get(),
                 output_filename=filename_var.get().strip(),
                 category_sheets=[c.strip() for c in category_var.get().split(',') if c.strip()]

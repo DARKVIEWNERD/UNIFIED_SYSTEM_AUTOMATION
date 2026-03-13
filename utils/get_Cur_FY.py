@@ -18,5 +18,3 @@ def get_current_year_quarter(d: date | None = None) -> str:
         q = "Q4"
 
     return f"{fy_year}-{q}"
-
-print(get_current_year_quarter())

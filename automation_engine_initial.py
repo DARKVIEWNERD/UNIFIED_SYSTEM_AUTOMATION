@@ -201,7 +201,6 @@ def handle_list(driver, by, selector, value):
 
 def execute_step(driver, step, country=None, category=None, platform=None, platform_name=None, mode="all"):
     """
-    Execute a single step
     
     Args:
         mode: "setup" (only steps without category param), 
@@ -347,12 +346,12 @@ def run_platform(driver, platform_config, country=None, category=None, platform=
             mode=mode
         )
 # ==========================================
-# MAIN ENTRY FOR main.py (EXACT SAME SIGNATURE)
+# MAIN ENTRY FOR main.py
 # ==========================================
 def execute_universal_flow(
     driver,
     country_data,
-    platform_config,  # Keep exactly as main.py expects - SINGULAR
+    platform_config,
     execution_folder,
     sequence_counters,
     existing_snapshots
@@ -367,17 +366,27 @@ def execute_universal_flow(
     platform_name = platform_config.get("name", "unknown")
     country_name = country_data["name"]
     country_code = country_data["code"]
-    
+
     logger.info(f"\n{'='*60}")
     logger.info(f"🌍 PROCESSING COUNTRY: {country_name} ({country_code})")
     logger.info(f"{'='*60}")
 
-    # Process each store (Android/Apple)
+    # ==========================================
+    # PROCESS EACH STORE
+    # ==========================================
+
     for store in PLATFORM_ALIASES.keys():
-        
-        if (platform_name.lower()== 'sensortower' and store=='android') and (country_name=='China' or country_code=='CN'):
-            logger.warning(f"⚠ SKIPPING: SensorTower Android China combination for {country_name} (no data available)")
+
+        if (
+            platform_name.lower() == "sensortower"
+            and store == "android"
+            and (country_name == "China" or country_code == "CN")
+        ):
+            logger.warning(
+                f"⚠ SKIPPING: SensorTower Android China combination for {country_name}"
+            )
             continue
+
         categories = PLATFORM_CATEGORIES.get(store, [])
         if not categories:
             continue
@@ -385,11 +394,49 @@ def execute_universal_flow(
         logger.info(f"\n{'─'*40}")
         logger.info(f"📱 STORE: {store.upper()}")
         logger.info(f"{'─'*40}")
-        
-        # Initialize page for this store
+
+        # ==========================================
+        # STEP 1: DETECT MISSING SNAPSHOTS FIRST
+        # ==========================================
+
+        missing_categories = []
+
+        for category in categories:
+
+            safe_category = clean_category_name(category).lower()
+
+            task_key = (
+                country_code,
+                platform_name.lower(),
+                store.lower(),
+                safe_category
+            )
+
+            if task_key not in existing_snapshots:
+                missing_categories.append(category)
+            else:
+                logger.info(f"      ⏭️ Existing snapshot detected: {task_key}")
+
+        # ==========================================
+        # STEP 2: SKIP STORE IF NOTHING IS MISSING
+        # ==========================================
+
+        if not missing_categories:
+            logger.info(
+                f"      ⏭️ All categories already exist — skipping {platform_name} {store.upper()}"
+            )
+            continue
+
+        logger.info(
+            f"      📌 Categories to process: {len(missing_categories)} / {len(categories)}"
+        )
+
+        # ==========================================
+        # STEP 3: INITIALIZE PAGE ONLY IF NEEDED
+        # ==========================================
+
         safe_initialize_page(driver, base_url, platform_name=platform_name)
 
-        # Check if platform is handled by JSON or needs auto-detect
         json_controls_platform = any(
             step.get("param") == "platform"
             for step in platform_config.get("custom_selectors", [])
@@ -401,27 +448,33 @@ def execute_universal_flow(
             logger.info("   🔎 Attempting auto-detect...")
             auto_detect_and_select_platform(driver, store)
 
-        # ========== SETUP PHASE ==========
-        # Run all steps that DON'T have category param
+        # ==========================================
+        # SETUP PHASE (RUN ONCE PER STORE)
+        # ==========================================
+
         logger.info(f"\n      ⚙️ SETUP PHASE")
+
         for step in platform_config.get("custom_selectors", []):
-            if step.get("param") != "category":  # Skip category steps during setup
+            if step.get("param") != "category":
+
                 execute_step(
-                driver,
-                step,
-                country=country_name,
-                platform=store,
-                platform_name=platform_name
-            )
-        
-     
-        # ========== CATEGORY PHASE ==========
+                    driver,
+                    step,
+                    country=country_name,
+                    platform=store,
+                    platform_name=platform_name
+                )
+
+        # ==========================================
+        # CATEGORY PHASE
+        # ==========================================
+
         logger.info(f"\n      🔄 CATEGORY PHASE")
-        
-        for cat_idx, category in enumerate(categories, start=1):
+
+        for cat_idx, category in enumerate(missing_categories, start=1):
+
             safe_category = clean_category_name(category).lower()
 
-            # Check if this combination already exists
             task_key = (
                 country_code,
                 platform_name.lower(),
@@ -429,26 +482,24 @@ def execute_universal_flow(
                 safe_category
             )
 
-            if task_key in existing_snapshots:
-                logger.info(f"      ⏭️ [{cat_idx}/{len(categories)}] Skipping existing: {task_key}")
-                continue
-
             total_attempted += 1
-            
-            # Progress bar
+
             print_progress(
-                cat_idx, 
-                len(categories), 
+                cat_idx,
+                len(missing_categories),
                 prefix=f"      Processing {platform_name} | {store.upper()} | {category}"
             )
 
-            logger.info(f"      🔄 [{cat_idx}/{len(categories)}] Category: {category}")
+            logger.info(
+                f"      🔄 [{cat_idx}/{len(missing_categories)}] Category: {category}"
+            )
 
-            # Run only steps that HAVE category param
-            results=[]
+            results = []
+
             for step in platform_config.get("custom_selectors", []):
-                if step.get("param") == "category":  # Only run category steps
-                    ok=execute_step(
+                if step.get("param") == "category":
+
+                    ok = execute_step(
                         driver,
                         step,
                         country=country_name,
@@ -456,17 +507,24 @@ def execute_universal_flow(
                         platform=store,
                         platform_name=platform_name
                     )
-                    results.append(ok)
-            if not results or not all(results):
-                logger.warning("      ⏭️ Skipping snapshot: encountered issue during interaction.")
-                continue
-        
 
-            # Small delay between categories
+                    results.append(ok)
+
+            if not results or not all(results):
+                logger.warning(
+                    "      ⏭️ Skipping snapshot: encountered issue during interaction."
+                )
+                continue
+
             time.sleep(2)
 
-            # Generate filename and save snapshot
-            sequence_number = get_next_sequence_number(country_data, sequence_counters)
+            # ==========================================
+            # SAVE SNAPSHOT
+            # ==========================================
+
+            sequence_number = get_next_sequence_number(
+                country_data, sequence_counters
+            )
 
             base_filename = create_base_filename(
                 country=country_data,
@@ -484,15 +542,21 @@ def execute_universal_flow(
             )
 
             if success:
+
                 success_count += 1
                 existing_snapshots.add(task_key)
+
                 logger.info(f"      💾 Snapshot saved: {result}")
+
             else:
                 logger.warning(f"      ⚠ Snapshot failed: {result}")
 
         logger.info(f"\n   ✅ Completed store: {store.upper()}")
 
-    # Summary for this country
+    # ==========================================
+    # COUNTRY SUMMARY
+    # ==========================================
+
     logger.info(f"\n{'='*60}")
     logger.info(f"✅ COMPLETED COUNTRY: {country_code}")
     logger.info(f"   Successful snapshots: {success_count}/{total_attempted}")

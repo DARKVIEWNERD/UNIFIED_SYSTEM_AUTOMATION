@@ -158,25 +158,41 @@ class ConfigManager:
     
     def extract_selectors(self):
         """Extract all unique selector roles and values from existing configs"""
+        
         roles = set()
         selectors = set()
-        tags = set(self.selectors_pool['tags'])
-        
+        tags = set(self.selectors_pool.get("tags", []))
+
         for config in self.configs:
-            for selector in config.custom_selectors + config.scraper_selectors:
-                if selector.role:
-                    roles.add(selector.role)
-                if selector.value:
-                    selectors.add(selector.value)
-                if selector.tag:
-                    tags.add(selector.tag)
-        
-        self.selectors_pool = {
-            'roles': sorted(list(roles)),
-            'selectors': sorted(list(selectors)),
-            'tags': sorted(list(tags))
-        }
-    
+
+            # -------- CUSTOM SELECTORS --------
+            if hasattr(config, "custom_selectors") and config.custom_selectors:
+                for s in config.custom_selectors:
+                    role = getattr(s, "role", None)
+                    value = getattr(s, "value", None)
+                    tag = getattr(s, "tag", None)
+
+                    if role:
+                        roles.add(role)
+                    if value:
+                        selectors.add(value)
+                    if tag:
+                        tags.add(tag)
+
+            # -------- SCRAPER SELECTORS --------
+            if hasattr(config, "scraper_selectors") and config.scraper_selectors:
+                for s in config.scraper_selectors:
+                    role = getattr(s, "role", None)
+                    value = getattr(s, "value", None)
+                    tag = getattr(s, "tag", None)
+
+                    if role:
+                        roles.add(role)
+                    if value:
+                        selectors.add(value)
+                    if tag:
+                        tags.add(tag)
+                        
     def get_config_names(self) -> List[str]:
         """Get list of configuration names"""
         return [c.name for c in self.configs]

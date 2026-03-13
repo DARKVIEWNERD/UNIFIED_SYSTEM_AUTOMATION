@@ -135,7 +135,9 @@ class ConfigTab(Base):
         # Custom-only rows (rows 0-2)
         self._lbl_name = ttk.Label(config_details, text="Configuration Name:", font=('Arial', 9))
         self._lbl_name.grid(row=0, column=0, sticky='w', padx=3, pady=3)
-        self.name_var = tk.StringVar()
+        # ✅ BUG FIX: Do NOT reassign self.name_var here. The StringVar created in __init__
+        # is what the rest of the code reads/writes. Reassigning it creates a new orphaned
+        # var bound to the widget while all other methods still point to the old one.
         name_combo = ttk.Combobox(config_details, textvariable=self.name_var, height=5)
         existing_names = [c.name for c in self.app.config_manager.configs if c.name]
         name_combo['values'] = existing_names
@@ -145,7 +147,7 @@ class ConfigTab(Base):
         
         self._lbl_url = ttk.Label(config_details, text="Website URL:", font=('Arial', 9))
         self._lbl_url.grid(row=1, column=0, sticky='w', padx=3, pady=3)
-        self.url_var = tk.StringVar()
+        # ✅ BUG FIX: Same — do NOT reassign self.url_var.
         url_combo = ttk.Combobox(config_details, textvariable=self.url_var, height=5)
         existing_urls = list(set(c.base_url for c in self.app.config_manager.configs if c.base_url))
         url_combo['values'] = existing_urls
@@ -157,7 +159,7 @@ class ConfigTab(Base):
         
         self._lbl_desc = ttk.Label(config_details, text="Description:", font=('Arial', 9))
         self._lbl_desc.grid(row=2, column=0, sticky='w', padx=3, pady=3)
-        self.desc_var = tk.StringVar()
+        # ✅ BUG FIX: Do NOT reassign self.desc_var.
         self._widget_desc = ttk.Entry(config_details, textvariable=self.desc_var)
         self._widget_desc.grid(row=2, column=1, columnspan=2, sticky='ew', padx=3, pady=3)
         
@@ -186,7 +188,7 @@ class ConfigTab(Base):
                   font=('Arial', 9, 'bold')).grid(row=0, column=0, sticky='w', padx=3, pady=3)
         radio_frame = ttk.Frame(status_frame)
         radio_frame.grid(row=0, column=1, sticky='w', padx=3, pady=3)
-        self.status_var = tk.BooleanVar(value=True)
+        # ✅ BUG FIX: Do NOT reassign self.status_var — reuse the one from __init__.
         ttk.Radiobutton(radio_frame, text="✅ Active", variable=self.status_var,
                         value=True, command=self.update_status_display).pack(side='left', padx=5)
         ttk.Radiobutton(radio_frame, text="❌ Inactive", variable=self.status_var,
@@ -243,14 +245,14 @@ class ConfigTab(Base):
         # Row 1: Role + Tag
         ttk.Label(selector_frame, text="Role:",
                   font=('Arial', 9)).grid(row=1, column=0, sticky='w', padx=3, pady=3)
-        self.role_var = tk.StringVar()
+        # ✅ BUG FIX: Do NOT reassign role_var / tag_var / selector_var / notes_var here.
+        # They are already created in __init__. Re-creating them orphans the old references.
         role_combo = ttk.Combobox(selector_frame, textvariable=self.role_var)
         role_combo['values'] = self.app.config_manager.selectors_pool['roles']
         role_combo.grid(row=1, column=1, sticky='ew', padx=3, pady=3)
         
         ttk.Label(selector_frame, text="HTML Tag:",
                   font=('Arial', 9)).grid(row=1, column=2, sticky='w', padx=8, pady=3)
-        self.tag_var = tk.StringVar(value="div")
         tag_combo = ttk.Combobox(selector_frame, textvariable=self.tag_var)
         tag_combo['values'] = self.app.config_manager.selectors_pool['tags']
         tag_combo.grid(row=1, column=3, sticky='ew', padx=3, pady=3)
@@ -258,13 +260,11 @@ class ConfigTab(Base):
         # Row 2: Element Type + Selector
         ttk.Label(selector_frame, text="Element Type:",
                   font=('Arial', 9)).grid(row=2, column=0, sticky='w', padx=3, pady=3)
-        self.type_var = tk.StringVar()
         ttk.Combobox(selector_frame, textvariable=self.type_var,
                      values=SelectorTypes.ALL).grid(row=2, column=1, sticky='ew', padx=3, pady=3)
         
         ttk.Label(selector_frame, text="Selector:",
                   font=('Arial', 9)).grid(row=2, column=2, sticky='w', padx=8, pady=3)
-        self.selector_var = tk.StringVar()
         selector_combo = ttk.Combobox(selector_frame, textvariable=self.selector_var)
         selector_combo['values'] = self.app.config_manager.selectors_pool['selectors']
         selector_combo.grid(row=2, column=3, sticky='ew', padx=3, pady=3)
@@ -272,7 +272,6 @@ class ConfigTab(Base):
         # Row 3: Notes
         ttk.Label(selector_frame, text="Notes:",
                   font=('Arial', 9)).grid(row=3, column=0, sticky='w', padx=3, pady=3)
-        self.notes_var = tk.StringVar()
         ttk.Entry(selector_frame, textvariable=self.notes_var).grid(
             row=3, column=1, columnspan=3, sticky='ew', padx=3, pady=3)
         
@@ -665,8 +664,6 @@ class ConfigTab(Base):
         
         # Load scraper selectors - convert to dict if needed
         self.scraper_selectors = []
-        
-        # First try the standard scraper_selectors attribute
         if hasattr(config, 'scraper_selectors') and config.scraper_selectors:
             for s in config.scraper_selectors:
                 if hasattr(s, 'to_dict'):
@@ -674,40 +671,17 @@ class ConfigTab(Base):
                 elif isinstance(s, dict):
                     self.scraper_selectors.append(s)
         
-        # If that's empty, check if there's a _raw_data attribute with custom_scraper_selectors
-        if not self.scraper_selectors and hasattr(config, '_raw_data'):
-            raw_data = config._raw_data if hasattr(config, '_raw_data') else {}
-            if raw_data and 'custom_scraper_selectors' in raw_data:
-                # Directly use the raw dict data
-                self.scraper_selectors = raw_data['custom_scraper_selectors']
-        
         self.main_container_index = config.main_container_index
         self.ConIndex_var.set(str(config.main_container_index) if config.main_container_index is not None else '')
         
-        # Determine which view mode to use based on what selectors exist
-        if self.scraper_selectors:
-            # If we have scraper selectors, show them
-            self.view_mode = 'scrape'
-            # Update UI for scrape mode
-            if hasattr(self, 'toggle_view_button') and self.toggle_view_button:
-                self.toggle_view_button.config(text="Switch to Custom Selectors")
-            if hasattr(self, 'view_badge') and self.view_badge:
-                self.view_badge.config(text="Viewing: Scrape Selectors", foreground='#e67e22')
-            if hasattr(self, 'add_button') and self.add_button:
-                self.add_button.config(text="➕ Add to Scrape")
-            # Set the profile key
-            if config.name:
-                self.scrape_profile_var.set(config.name)
-        else:
-            # Default to custom view
-            self.view_mode = 'custom'
-            # Update UI for custom mode
-            if hasattr(self, 'toggle_view_button') and self.toggle_view_button:
-                self.toggle_view_button.config(text="Switch to Scrape Selectors")
-            if hasattr(self, 'view_badge') and self.view_badge:
-                self.view_badge.config(text="Viewing: Custom Selectors", foreground='#27ae60')
-            if hasattr(self, 'add_button') and self.add_button:
-                self.add_button.config(text="➕ Add to Custom")
+ 
+        self.view_mode = 'custom'
+        if hasattr(self, 'toggle_view_button') and self.toggle_view_button:
+            self.toggle_view_button.config(text="Switch to Scrape Selectors")
+        if hasattr(self, 'view_badge') and self.view_badge:
+            self.view_badge.config(text="Viewing: Custom Selectors", foreground='#27ae60')
+        if hasattr(self, 'add_button') and self.add_button:
+            self.add_button.config(text="➕ Add to Custom")
         
         self.editing_index = -1
         self.update_selector_list()
