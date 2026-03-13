@@ -2,7 +2,7 @@
 import re
 
 CURRENCY_RE = re.compile(r"(?:[\$\€\£\¥₱]|USD|EUR|GBP|JPY|CNY|RMB|HKD|TWD|KRW|INR|PHP)", re.IGNORECASE)
-PRICE_WORDS_RE = re.compile(r"\b(?:free|price|deal|discount|save|offer|sale)\b", re.IGNORECASE)
+PRICE_WORDS_RE = re.compile(r"\b(?:free|price|deal|discount|offer|sale)\b", re.IGNORECASE)
 RATING_RE = re.compile(r"(?:★|☆|⭐|/5|/10|ratings?|reviews?)", re.IGNORECASE)
 ONLY_DIGITS_RE = re.compile(r"^\s*[\d.,]+\s*$")
 ZERO_DOLLARS_RE = re.compile(r"^\s*0+\s*(?:dollars|usd|php)?\s*$", re.IGNORECASE)
