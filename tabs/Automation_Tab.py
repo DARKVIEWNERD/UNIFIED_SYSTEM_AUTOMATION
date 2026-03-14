@@ -94,7 +94,6 @@ class AutomationTab(Base):
         
         # Add configuration sections
         self.build_country_section(scrollable)
-        self.build_web_platforms_section(scrollable)
         self.build_app_platforms_section(scrollable)
         self.build_categories_section(scrollable)
         self.build_output_section(scrollable)
@@ -157,61 +156,120 @@ class AutomationTab(Base):
         self.selection_frame = ttk.Frame(control_frame)
         self.selection_label = ttk.Label(self.selection_frame, text="", foreground='blue')
         self.selection_label.pack()
-        
+
+    def refresh_country_status(self):
+        """Refresh countries display (2-column layout)"""
+        if not self._country_status_frame:
+            return
+
+        # Clear old widgets
+        for widget in self._country_status_frame.winfo_children():
+            widget.destroy()
+
+        for i, country in enumerate(COUNTRIES):
+
+            row = i // 2
+            col = i % 2
+
+            text = f"• {country['name']} ({country['code']})"
+
+            ttk.Label(
+                self._country_status_frame,
+                text=text,
+                font=('Arial', 9)
+            ).grid(row=row, column=col, sticky="w", padx=10, pady=2)
+
+        # Make columns expand evenly
+        self._country_status_frame.grid_columnconfigure(0, weight=1)
+        self._country_status_frame.grid_columnconfigure(1, weight=1)
     def build_country_section(self, parent):
-        """Build country selection section"""
-        country_frame = ttk.LabelFrame(parent, text="📍 Countries", padding=5)
-        country_frame.pack(fill='x', pady=5)
-        
-        for country in COUNTRIES:
-            var = tk.BooleanVar(value=True)
-            self.country_vars[country['code']] = var
-            ttk.Checkbutton(country_frame,
-                          text=f"{country['name']} ({country['code']})",
-                          variable=var).pack(anchor='w', pady=2)
-                          
-    def build_web_platforms_section(self, parent):
-        """Build web platforms section"""
-        web_frame = ttk.LabelFrame(parent, text="🌐 Web Platforms", padding=5)
-        web_frame.pack(fill='x', pady=5)
-        
-        for platform in WEB_PLATFORMS:
-            var = tk.BooleanVar(value=True)
-            self.web_vars[platform['name']] = var
-            ttk.Checkbutton(web_frame,
-                          text=f"{platform['name']} - {platform['type']}",
-                          variable=var).pack(anchor='w', pady=2)
-                          
-    def build_app_platforms_section(self, parent):
-        """Build app platforms section"""
-        app_frame = ttk.LabelFrame(parent, text="📱 App Platforms", padding=5)
-        app_frame.pack(fill='x', pady=5)
-        
+        """Build countries display section"""
+        frame = ttk.LabelFrame(parent, text="📍 Countries", padding=5)
+        frame.pack(fill='x', pady=5)
+
+        self._country_status_frame = ttk.Frame(frame)
+        self._country_status_frame.pack(fill='x', padx=5, pady=2)
+
+        self.refresh_country_status()
+
+    def refresh_app_platforms(self):
+        if not self._app_platform_frame:
+            return
+
+        for widget in self._app_platform_frame.winfo_children():
+            widget.destroy()
+
         for platform in APP_PLATFORMS:
-            var = tk.BooleanVar(value=True)
-            self.app_vars[platform] = var
-            ttk.Checkbutton(app_frame, text=platform.upper(),
-                          variable=var).pack(anchor='w', pady=2)
-                          
-    def build_categories_section(self, parent):
-        """Build categories section"""
-        cat_frame = ttk.LabelFrame(parent, text="🗂 Categories", padding=5)
-        cat_frame.pack(fill='x', pady=5)
-        
-        for app_platform, categories in PLATFORM_CATEGORIES.items():
-            ttk.Label(cat_frame, text=f"{app_platform.upper()}:",
-                     font=('Arial', 9, 'bold')).pack(anchor='w', pady=(5, 2))
-            
+            row = ttk.Frame(self._app_platform_frame)
+            row.pack(fill='x', pady=1)
+
+            ttk.Label(row, text="•", foreground="gray").pack(side='left')
+
+            ttk.Label(
+                row,
+                text=f" {platform.upper()}",
+                font=('Arial', 9)
+            ).pack(side='left')
+    def build_app_platforms_section(self, parent):
+        frame = ttk.LabelFrame(parent, text="📱 App Platforms", padding=5)
+        frame.pack(fill='x', pady=5)
+
+        self._app_platform_frame = ttk.Frame(frame)
+        self._app_platform_frame.pack(fill='x', padx=5, pady=2)
+
+        self.refresh_app_platforms()
+
+    def refresh_categories_status(self):
+        """Refresh categories display"""
+        if not self._category_status_frame:
+            return
+
+        # Clear previous widgets
+        for widget in self._category_status_frame.winfo_children():
+            widget.destroy()
+
+        for platform, categories in PLATFORM_CATEGORIES.items():
+
+            # Platform header
+            ttk.Label(
+                self._category_status_frame,
+                text=f"{platform.upper()}:",
+                font=('Arial', 9, 'bold')
+            ).pack(anchor='w', pady=(4, 1))
+
+            # Display first few categories
             for category in categories[:5]:
-                var = tk.BooleanVar(value=True)
-                self.category_vars[f"{app_platform}_{category}"] = var
                 label = category[:40] + "..." if len(category) > 40 else category
-                ttk.Checkbutton(cat_frame, text=label, variable=var).pack(anchor='w', padx=10)
-                
+
+                row = ttk.Frame(self._category_status_frame)
+                row.pack(fill='x')
+
+                ttk.Label(row, text="•", foreground="gray").pack(side='left')
+
+                ttk.Label(
+                    row,
+                    text=f" {label}",
+                    font=('Arial', 9)
+                ).pack(side='left')
+
+            # Show hidden count
             if len(categories) > 5:
-                ttk.Label(cat_frame,
-                         text=f"... and {len(categories) - 5} more",
-                         foreground='gray').pack(anchor='w', padx=10)
+                ttk.Label(
+                    self._category_status_frame,
+                    text=f"... and {len(categories) - 5} more",
+                    foreground="gray",
+                    font=('Arial', 8)
+                ).pack(anchor='w', padx=10) 
+
+    def build_categories_section(self, parent):
+        """Build categories display section"""
+        frame = ttk.LabelFrame(parent, text="🗂 Categories", padding=5)
+        frame.pack(fill='x', pady=5)
+
+        self._category_status_frame = ttk.Frame(frame)
+        self._category_status_frame.pack(fill='x', padx=5, pady=2)
+
+        self.refresh_categories_status()
                          
     def build_output_section(self, parent):
         """Build output directory section"""
