@@ -112,7 +112,7 @@ class ConfigManager:
             
             # Build scrape entry
             scrape_entry = {
-                "custom_Scraper_selectors": [s.to_dict() for s in scraper_selectors]
+                "custom_scraper_selectors": [s.to_dict() for s in scraper_selectors]
             }
             if main_container_index is not None:
                 scrape_entry["main_container_index"] = main_container_index
@@ -132,7 +132,7 @@ class ConfigManager:
         data = self.load_scrape_configs()
         profile = data.get(profile_key, {})
         
-        selectors = [Selector.from_dict(s) for s in profile.get('custom_Scraper_selectors', [])]
+        selectors = [Selector.from_dict(s) for s in profile.get('custom_scraper_selectors', [])]
         idx = profile.get('main_container_index')
         
         # Handle both list and single integer formats
@@ -163,9 +163,9 @@ class ConfigManager:
         selectors = set()
         tags = set(self.selectors_pool.get("tags", []))
 
+        # Process custom configurations (from custom_patterns.json)
         for config in self.configs:
-
-            # -------- CUSTOM SELECTORS --------
+            # Custom selectors
             if hasattr(config, "custom_selectors") and config.custom_selectors:
                 for s in config.custom_selectors:
                     role = getattr(s, "role", None)
@@ -179,19 +179,28 @@ class ConfigManager:
                     if tag:
                         tags.add(tag)
 
-            # -------- SCRAPER SELECTORS --------
-            if hasattr(config, "scraper_selectors") and config.scraper_selectors:
-                for s in config.scraper_selectors:
-                    role = getattr(s, "role", None)
-                    value = getattr(s, "value", None)
-                    tag = getattr(s, "tag", None)
-
-                    if role:
-                        roles.add(role)
-                    if value:
-                        selectors.add(value)
-                    if tag:
-                        tags.add(tag)
+        # Process scrape configurations (from config.json)
+        scrape_configs = self.load_scrape_configs()
+        for profile_key, profile_data in scrape_configs.items():
+            # Look for scraper selectors using the actual key name from config.json
+            scraper_selectors = profile_data.get('custom_Scraper_selectors', [])
+            for s in scraper_selectors:
+                # s is already a dict from JSON, not a Selector object
+                role = s.get('role')
+                value = s.get('value')
+                tag = s.get('tag')
+                
+                if role:
+                    roles.add(role)
+                if value:
+                    selectors.add(value)
+                if tag:
+                    tags.add(tag)
+        
+        # Update the pool
+        self.selectors_pool['roles'] = sorted(list(roles))
+        self.selectors_pool['selectors'] = sorted(list(selectors))
+        self.selectors_pool['tags'] = sorted(list(tags))
                         
     def get_config_names(self) -> List[str]:
         """Get list of configuration names"""

@@ -193,16 +193,6 @@
       }
     ],
     "main_container_index": 0
-  },
-  "test": {
-    "custom_Scraper_selectors": [
-      {
-        "role": "test231",
-        "tag": "34",
-        "type": "234",
-        "value": "FA"
-      }
-    ],
-    "main_container_index": 0
   }
+
 }

@@ -15,7 +15,7 @@ from selenium.webdriver.support import expected_conditions as EC
 # Import from our modules
 from config import (
     COUNTRIES, PLATFORM_CATEGORIES, WEB_PLATFORMS, APP_PLATFORMS,
-    TARGET_DIR, DELAYS, CHROME_OPTIONS, MAX_RETRIES, WEBDRIVER_WAIT
+    TARGET_DIR, DELAYS, CHROME_OPTIONS, MAX_RETRIES, WEBDRIVER_WAIT, reload_web_platforms
 )
 from utils.utils import (
     slugify, get_country_slug, get_url_for_platform,
@@ -70,7 +70,8 @@ def load_custom_configs():
     
     return custom_configs
 def execute_process():
-
+     # ── Re-read custom_patterns.json so any edits since last run are live ──
+    reload_web_platforms()
     total_countries, urls_per_country, total_tests = calculate_totals()
     """Execute the main scraping process for all countries and platforms"""
     logger.info("=" * 60)

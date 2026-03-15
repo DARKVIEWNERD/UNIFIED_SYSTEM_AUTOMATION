@@ -664,13 +664,13 @@ class ConfigTab(Base):
         
         # Load scraper selectors - convert to dict if needed
         self.scraper_selectors = []
-        if hasattr(config, 'scraper_selectors') and config.scraper_selectors:
-            for s in config.scraper_selectors:
+        # Check if the config has the attribute and it's not empty
+        if hasattr(config, 'custom_Scraper_selectors') and config.custom_Scraper_selectors:
+            for s in config.custom_Scraper_selectors:  # Use the same attribute name
                 if hasattr(s, 'to_dict'):
                     self.scraper_selectors.append(s.to_dict())
                 elif isinstance(s, dict):
                     self.scraper_selectors.append(s)
-        
         self.main_container_index = config.main_container_index
         self.ConIndex_var.set(str(config.main_container_index) if config.main_container_index is not None else '')
         

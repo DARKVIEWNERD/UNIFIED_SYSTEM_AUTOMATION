@@ -36,28 +36,59 @@ PLATFORM_ALIASES = {
 }
 
 # ==========================================
+# STOP FLAG REFERENCE
+# ==========================================
+# Automation_Tab sets this to True when the user clicks STOP.
+# All blocking waits check it so they bail out immediately
+# instead of waiting for their full timeout to expire.
+
+def _is_stop_requested():
+    """Check the tab's STOP_AUTOMATION flag without a hard import dependency."""
+    try:
+        from tabs.Automation_Tab import STOP_AUTOMATION
+        return STOP_AUTOMATION
+    except Exception:
+        return False
+
+
+# ==========================================
 # STABILIZER
 # ==========================================
 
 def wait_for_stable(driver, timeout=20):
-    wait = WebDriverWait(driver, timeout)
+    """Wait for page readyState + jQuery idle.
+    Bails out immediately if STOP_AUTOMATION is set — no more waiting
+    up to `timeout` seconds after the user clicks Stop."""
+    if _is_stop_requested():
+        return
 
-    wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if _is_stop_requested():
+            return
+        try:
+            ready = driver.execute_script("return document.readyState") == "complete"
+            jquery_idle = driver.execute_script(
+                "return (window.jQuery ? jQuery.active == 0 : true)"
+            )
+            if ready and jquery_idle:
+                break
+        except Exception:
+            break
+        time.sleep(0.3)
 
-    try:
-        wait.until(lambda d: d.execute_script(
-            "return (window.jQuery ? jQuery.active == 0 : true)"
-        ))
-    except Exception:
-        pass
+    if not _is_stop_requested():
+        time.sleep(0.5)
 
-    time.sleep(0.5)
+
 
 # ==========================================
 # SAFE PAGE INIT (MAIN-CONTROLLED DRIVER)
 # ==========================================
 
 def safe_initialize_page(driver, url, platform_name=None):
+    if _is_stop_requested():
+        return
     test_url_with_retry(driver, url)
     wait_for_stable(driver)
 
@@ -182,18 +213,17 @@ def handle_list(driver, by, selector, value):
         try:
             text = el.text.strip().lower()
 
-            
             if text == value.lower() or any(alias in text for alias in aliases):
                 driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
                 time.sleep(0.5)
                 click(driver, el)
                 logger.info(f"✔ Selected: {text}")
-                return True  # Make sure to return True when found and clicked
+                return True
         except Exception:
             continue
 
     logger.warning(f"⚠ Could not find '{value}' in list")
-    return False  # Return False if not found
+    return False
 
 # ==========================================
 # STEP EXECUTION
@@ -201,9 +231,8 @@ def handle_list(driver, by, selector, value):
 
 def execute_step(driver, step, country=None, category=None, platform=None, platform_name=None, mode="all"):
     """
-    
     Args:
-        mode: "setup" (only steps without category param), 
+        mode: "setup" (only steps without category param),
               "category" (only steps with category param),
               "all" (all steps)
     """
@@ -211,13 +240,10 @@ def execute_step(driver, step, country=None, category=None, platform=None, platf
     selector = step.get("selector") or step.get("value")
     element_type = step.get("type", "").lower()
     param_type = step.get("param")
-    
-    # Filter steps based on mode
+
     if mode == "setup" and param_type == "category":
-        # Skip category steps during setup
         return True
     elif mode == "category" and param_type != "category":
-        # Only run category steps during category execution
         if param_type not in ["category", None]:
             return True
 
@@ -233,12 +259,10 @@ def execute_step(driver, step, country=None, category=None, platform=None, platf
     input_value = param_map.get(param_type)
     by, normalized = resolve_selector(selector)
 
-    # --- Normalizations ---
     p_name = (platform_name or "").strip().lower()
     c_val = (country or "").strip().lower()
     is_sensortower = p_name in {"sensortower", "sensor tower"}
 
-    # Common US label variants
     is_us = (
         c_val in {
             "us", "usa", "u.s.", "u.s.a.",
@@ -248,20 +272,20 @@ def execute_step(driver, step, country=None, category=None, platform=None, platf
         c_val.startswith("united states")
     )
 
-    # 1) Skip opening the country dropdown button on SensorTower if the target country is US
     if is_sensortower and is_us and role == "button_country":
         logger.info("⏭️ Skipping 'button_country' click (SensorTower + US).")
         return True
 
-    # 2) Skip the country list selection if the country param resolves to US
     if is_sensortower and is_us and param_type == "country":
         logger.info("⏭️ Skipping 'country' list selection (SensorTower + US).")
         return True
 
-    # Track if we've successfully performed the main action
     action_completed = False
-    
+
     for attempt in range(3):
+        if _is_stop_requested():
+            logger.info(f"⏹️ Stop requested — skipping step: {role}")
+            return False
         try:
             wait_for_stable(driver)
 
@@ -294,7 +318,6 @@ def execute_step(driver, step, country=None, category=None, platform=None, platf
                 action_completed = True
 
             elif "dropdown" in element_type:
-                # Defensive: don't open dropdown if no value provided
                 if not input_value:
                     logger.info(f"⏭️ Skipping dropdown open for '{role}' (no value).")
                     return True
@@ -307,7 +330,6 @@ def execute_step(driver, step, country=None, category=None, platform=None, platf
                 click(driver, element)
                 action_completed = True
 
-            # If we get here without exceptions, consider it successful
             if is_sensortower and action_completed:
                 logger.info(f"✔ Executed (with success marker): {role}")
                 return True
@@ -316,17 +338,16 @@ def execute_step(driver, step, country=None, category=None, platform=None, platf
                 return True
 
         except Exception as e:
-            # For SensorTower, if we've already completed the action, consider it a success despite the exception
             if is_sensortower and action_completed:
                 logger.info(f"✔ Action completed for {role} despite subsequent error: {e}")
                 return True
-                
+
             logger.warning(f"⚠ Attempt {attempt+1} failed for {role}: {e}")
             time.sleep(0.5)
 
     logger.error(f"❌ Step permanently failed: {role}")
     return False
-    
+
 # ==========================================
 # RUN PLATFORM (NEW HELPER FUNCTION)
 # ==========================================
@@ -334,7 +355,7 @@ def execute_step(driver, step, country=None, category=None, platform=None, platf
 def run_platform(driver, platform_config, country=None, category=None, platform=None, mode="all"):
     """Execute all steps for a platform config with given parameters"""
     platform_name = platform_config.get("name", "unknown")
-    
+
     for step in platform_config.get("custom_selectors", []):
         execute_step(
             driver,
@@ -345,6 +366,7 @@ def run_platform(driver, platform_config, country=None, category=None, platform=
             platform_name=platform_name,
             mode=mode
         )
+
 # ==========================================
 # MAIN ENTRY FOR main.py
 # ==========================================
@@ -371,11 +393,11 @@ def execute_universal_flow(
     logger.info(f"🌍 PROCESSING COUNTRY: {country_name} ({country_code})")
     logger.info(f"{'='*60}")
 
-    # ==========================================
-    # PROCESS EACH STORE
-    # ==========================================
-
     for store in PLATFORM_ALIASES.keys():
+
+        if _is_stop_requested():
+            logger.warning("⏹️ Stop requested — aborting store loop.")
+            break
 
         if (
             platform_name.lower() == "sensortower"
@@ -395,31 +417,21 @@ def execute_universal_flow(
         logger.info(f"📱 STORE: {store.upper()}")
         logger.info(f"{'─'*40}")
 
-        # ==========================================
-        # STEP 1: DETECT MISSING SNAPSHOTS FIRST
-        # ==========================================
-
+        # ── Detect missing snapshots ──────────────────────────────────────
         missing_categories = []
 
         for category in categories:
-
             safe_category = clean_category_name(category).lower()
-
             task_key = (
                 country_code,
                 platform_name.lower(),
                 store.lower(),
                 safe_category
             )
-
             if task_key not in existing_snapshots:
                 missing_categories.append(category)
             else:
                 logger.info(f"      ⏭️ Existing snapshot detected: {task_key}")
-
-        # ==========================================
-        # STEP 2: SKIP STORE IF NOTHING IS MISSING
-        # ==========================================
 
         if not missing_categories:
             logger.info(
@@ -431,10 +443,7 @@ def execute_universal_flow(
             f"      📌 Categories to process: {len(missing_categories)} / {len(categories)}"
         )
 
-        # ==========================================
-        # STEP 3: INITIALIZE PAGE ONLY IF NEEDED
-        # ==========================================
-
+        # ── Initialize page ───────────────────────────────────────────────
         safe_initialize_page(driver, base_url, platform_name=platform_name)
 
         json_controls_platform = any(
@@ -448,15 +457,11 @@ def execute_universal_flow(
             logger.info("   🔎 Attempting auto-detect...")
             auto_detect_and_select_platform(driver, store)
 
-        # ==========================================
-        # SETUP PHASE (RUN ONCE PER STORE)
-        # ==========================================
-
+        # ── Setup phase (once per store) ──────────────────────────────────
         logger.info(f"\n      ⚙️ SETUP PHASE")
 
         for step in platform_config.get("custom_selectors", []):
             if step.get("param") != "category":
-
                 execute_step(
                     driver,
                     step,
@@ -465,16 +470,16 @@ def execute_universal_flow(
                     platform_name=platform_name
                 )
 
-        # ==========================================
-        # CATEGORY PHASE
-        # ==========================================
-
+        # ── Category phase ────────────────────────────────────────────────
         logger.info(f"\n      🔄 CATEGORY PHASE")
 
         for cat_idx, category in enumerate(missing_categories, start=1):
 
-            safe_category = clean_category_name(category).lower()
+            if _is_stop_requested():
+                logger.warning("⏹️ Stop requested — aborting category loop.")
+                break
 
+            safe_category = clean_category_name(category).lower()
             task_key = (
                 country_code,
                 platform_name.lower(),
@@ -498,7 +503,6 @@ def execute_universal_flow(
 
             for step in platform_config.get("custom_selectors", []):
                 if step.get("param") == "category":
-
                     ok = execute_step(
                         driver,
                         step,
@@ -507,7 +511,6 @@ def execute_universal_flow(
                         platform=store,
                         platform_name=platform_name
                     )
-
                     results.append(ok)
 
             if not results or not all(results):
@@ -516,12 +519,12 @@ def execute_universal_flow(
                 )
                 continue
 
-            time.sleep(2)
+            # ── Wait for page to fully settle before saving ──────────────
+            # wait_for_stable() handles readyState=complete + jQuery idle.
+            # Once that passes the page content including icons is fully loaded.
+            wait_for_stable(driver)
 
-            # ==========================================
-            # SAVE SNAPSHOT
-            # ==========================================
-
+            # ── Save snapshot ─────────────────────────────────────────────
             sequence_number = get_next_sequence_number(
                 country_data, sequence_counters
             )
@@ -542,20 +545,13 @@ def execute_universal_flow(
             )
 
             if success:
-
                 success_count += 1
                 existing_snapshots.add(task_key)
-
                 logger.info(f"      💾 Snapshot saved: {result}")
-
             else:
                 logger.warning(f"      ⚠ Snapshot failed: {result}")
 
         logger.info(f"\n   ✅ Completed store: {store.upper()}")
-
-    # ==========================================
-    # COUNTRY SUMMARY
-    # ==========================================
 
     logger.info(f"\n{'='*60}")
     logger.info(f"✅ COMPLETED COUNTRY: {country_code}")
