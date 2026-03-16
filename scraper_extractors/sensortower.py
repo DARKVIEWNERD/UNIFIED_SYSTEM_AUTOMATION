@@ -2,8 +2,8 @@
 import re
 from pathlib import Path
 from bs4 import BeautifulSoup
-from helpers.io import bs_kwargs
-from helpers.text import looks_like_bad_publisher, clean_publisher_text, score_publisher_candidate
+from scraper_helpers.io import bs_kwargs
+from scraper_helpers.text import looks_like_bad_publisher, clean_publisher_text, score_publisher_candidate
 
 # --- Optional Selenium ---
 try:

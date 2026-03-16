@@ -57,8 +57,7 @@ def _is_stop_requested():
 
 def wait_for_stable(driver, timeout=20):
     """Wait for page readyState + jQuery idle.
-    Bails out immediately if STOP_AUTOMATION is set — no more waiting
-    up to `timeout` seconds after the user clicks Stop."""
+    Bails out immediately if STOP_AUTOMATION is set."""
     if _is_stop_requested():
         return
 
@@ -80,6 +79,46 @@ def wait_for_stable(driver, timeout=20):
     if not _is_stop_requested():
         time.sleep(0.5)
 
+
+# ==========================================
+# SCROLL TO TRIGGER LAZY LOADING
+# ==========================================
+
+def scroll_to_load_content(driver, scrolls=4, pause=0.8):
+    """
+    Scroll down incrementally to trigger lazy-loaded content (icons, images, charts).
+    Called after every interaction that may cause new content to render.
+    Scrolls back to top so the next interaction or snapshot starts from the beginning.
+    """
+    if _is_stop_requested():
+        return
+    try:
+        for attempt in range(2):  # retry once if height changes mid-scroll
+            total_height = driver.execute_script("return document.body.scrollHeight")
+            if total_height == 0:
+                break
+
+            step = max(total_height // scrolls, 200)
+
+            for i in range(1, scrolls + 1):
+                if _is_stop_requested():
+                    return
+                driver.execute_script(f"window.scrollTo(0, {step * i});")
+                time.sleep(pause)
+
+            # Check if page grew during scroll (infinite scroll / dynamic content)
+            new_height = driver.execute_script("return document.body.scrollHeight")
+            if new_height <= total_height:
+                break  # no new content loaded, no need to re-scroll
+
+            logger.info("   ↕ Page grew during scroll — re-scrolling to capture new content.")
+
+        # Always return to top so snapshot / next step starts from beginning
+        driver.execute_script("window.scrollTo(0, 0);")
+        time.sleep(0.4)
+
+    except Exception as e:
+        logger.warning(f"⚠ Scroll failed: {e}")
 
 
 # ==========================================
@@ -171,6 +210,8 @@ def click(driver, element, wait_after=True):
 
     if wait_after:
         wait_for_stable(driver)
+        # Scroll after click so any newly rendered content
+        # (panels, dropdowns, chart icons) is fully loaded into the DOM
 
 def handle_input(driver, element, value):
     element.clear()
@@ -178,6 +219,8 @@ def handle_input(driver, element, value):
         element.send_keys(value)
         element.send_keys(Keys.RETURN)
         wait_for_stable(driver)
+        # Input submissions often trigger a full page/panel re-render
+        scroll_to_load_content(driver)
 
 def handle_select(driver, element, value):
     if not value:
@@ -193,6 +236,9 @@ def handle_select(driver, element, value):
         """, element)
 
         wait_for_stable(driver)
+        # Fire scroll after select — dropdowns often swap content panels
+        # that only render icons/charts once they enter the viewport
+        scroll_to_load_content(driver)
         return
     except Exception:
         pass
@@ -201,6 +247,7 @@ def handle_select(driver, element, value):
     time.sleep(.5)
     option = driver.find_element(By.XPATH, f"//*[contains(text(), '{value}')]")
     click(driver, option)
+    # click() already calls scroll_to_load_content internally
 
 def handle_list(driver, by, selector, value):
     if not value:
@@ -282,7 +329,7 @@ def execute_step(driver, step, country=None, category=None, platform=None, platf
 
     action_completed = False
 
-    for attempt in range(3):
+    for attempt in range(1):
         if _is_stop_requested():
             logger.info(f"⏹️ Stop requested — skipping step: {role}")
             return False
@@ -376,7 +423,8 @@ def execute_universal_flow(
     platform_config,
     execution_folder,
     sequence_counters,
-    existing_snapshots
+    existing_snapshots,
+    extract_fn=None,
 ):
     from utils.utils import clean_category_name, get_next_sequence_number
     from file_handlers import create_base_filename, save_mhtml_snapshot
@@ -519,9 +567,6 @@ def execute_universal_flow(
                 )
                 continue
 
-            # ── Wait for page to fully settle before saving ──────────────
-            # wait_for_stable() handles readyState=complete + jQuery idle.
-            # Once that passes the page content including icons is fully loaded.
             wait_for_stable(driver)
 
             # ── Save snapshot ─────────────────────────────────────────────
@@ -548,6 +593,20 @@ def execute_universal_flow(
                 success_count += 1
                 existing_snapshots.add(task_key)
                 logger.info(f"      💾 Snapshot saved: {result}")
+
+                # ── Scrape immediately after save ──────────────────────────
+                if extract_fn is not None:
+                    try:
+                        _saved_path = str(execution_folder / f"{base_filename}.mhtml")
+                        extract_fn(
+                            saved_path=_saved_path,
+                            platform_key=platform_config.get("name", platform_name.lower()),
+                            country=country_data,
+                            safe_category=safe_category,
+                            execution_folder=execution_folder,
+                        )
+                    except Exception as _ex:
+                        logger.warning(f"      ⚠ Scrape step failed for {base_filename}: {_ex}")
             else:
                 logger.warning(f"      ⚠ Snapshot failed: {result}")
 

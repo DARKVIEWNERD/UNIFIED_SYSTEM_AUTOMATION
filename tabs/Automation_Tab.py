@@ -30,7 +30,7 @@ class AutomationTab(Base):
         self.stop_flag = False
         self.start_time = None
         self.automation_thread = None
-        self._driver = None          # holds the live Chrome driver so stop_automation() can kill it
+        self._driver = None
 
         # Configuration variables
         self.country_vars = {}
@@ -54,6 +54,7 @@ class AutomationTab(Base):
         self.log_count_label = None
         self.filter_var = None
         self.level_var = None
+        self.match_label = None
         self.selection_label = None
         self.selection_frame = None
         self.status_frame = None
@@ -91,8 +92,8 @@ class AutomationTab(Base):
         self.build_country_section(scrollable)
         self.build_app_platforms_section(scrollable)
         self.build_categories_section(scrollable)
-        self.build_output_section(scrollable)
         self.build_config_status_section(scrollable)
+        self.build_output_section(scrollable)
         self.build_scrape_status_section(scrollable)
 
     def build_control_panel(self, parent):
@@ -238,7 +239,7 @@ class AutomationTab(Base):
         header_frame = ttk.Frame(parent)
         header_frame.pack(fill='x', pady=5)
         ttk.Label(header_frame, text="📊 LIVE AUTOMATION LOGS",
-                  style='Header.TLabel').pack()
+                  style='Header.TLabel') .pack()
 
         control_frame = ttk.Frame(parent)
         control_frame.pack(fill='x', pady=5)
@@ -288,13 +289,21 @@ class AutomationTab(Base):
     def build_filter_panel(self, parent):
         filter_frame = ttk.Frame(parent)
         filter_frame.pack(fill='x', pady=5)
+
         ttk.Label(filter_frame, text="Filter:").pack(side='left', padx=5)
+
         self.filter_var = tk.StringVar()
         filter_entry = ttk.Entry(filter_frame, textvariable=self.filter_var, width=20)
         filter_entry.pack(side='left', padx=5)
         filter_entry.bind('<KeyRelease>', self.filter_logs)
+
         ttk.Button(filter_frame, text="Clear Filter",
                    command=self.clear_filter).pack(side='left', padx=5)
+
+        # Live match counter — updated by filter_logs on every keystroke or combo change
+        self.match_label = ttk.Label(filter_frame, text="", foreground='gray')
+        self.match_label.pack(side='left', padx=5)
+
         self.level_var = tk.StringVar(value="ALL")
         level_combo = ttk.Combobox(filter_frame, textvariable=self.level_var,
                                    values=['ALL', 'INFO', 'WARNING', 'ERROR'], width=10)
@@ -634,554 +643,69 @@ class AutomationTab(Base):
         self.update_timer()
 
     def run_automation(self):
-        """Run execute_process() inline — same pattern as run_directory_scraping().
-        Uses the tab's own STOP_AUTOMATION global and self.app.root.after() for UI sync.
-        main.py is NOT modified — it is only imported for its helpers.
+        """Thin wrapper — UI wiring only.
+        All business logic lives in automation_runner.run_automation_process().
         """
         try:
-            # ── Imports (same as main.py) ─────────────────────────────────
-            from selenium import webdriver
-            from selenium.webdriver.chrome.options import Options
-            from selenium.webdriver.common.by import By
-            from selenium.webdriver.support.ui import WebDriverWait
-            from selenium.webdriver.support import expected_conditions as EC
-            from config import (
-                COUNTRIES, PLATFORM_CATEGORIES, WEB_PLATFORMS, APP_PLATFORMS,
-                TARGET_DIR, DELAYS, CHROME_OPTIONS, WEBDRIVER_WAIT, reload_web_platforms
-            )
-            from utils.utils import (
-                slugify, get_country_slug, get_url_for_platform,
-                print_progress, random_sleep, clean_category_name,
-                get_next_sequence_number, calculate_totals
-            )
-            from Web_validators import (
-                is_human_verification, is_page_unusable,
-                wait_for_manual_verification, test_url_with_retry
-            )
-            from file_handlers import (
-                ensure_directory_exists, save_mhtml_snapshot,
-                create_base_filename, load_existing_snapshots,
-                initialize_counters_from_files
-            )
+            from automation_runner import run_automation_process
+
+            def _update_status(text):
+                self.app.root.after(0, lambda t=text: self.status_label.config(text=t))
+
+            def _update_progress(pct):
+                self.app.root.after(0, lambda p=pct: (
+                    self.progress_bar.configure(value=p),
+                    self.progress_label.configure(text=f"{p:.1f}%")
+                ))
+
+            def _increment_files():
+                self.app.root.after(0, lambda: self.files_count.config(
+                    text=str(int(self.files_count.cget("text") or 0) + 1)
+                ))
+
+            def _increment_files_by(n):
+                self.app.root.after(0, lambda n=n: self.files_count.config(
+                    text=str(int(self.files_count.cget("text") or 0) + n)
+                ))
+
+            def _set_counts(success, failed):
+                self.app.root.after(0, lambda s=success, f=failed: (
+                    self.success_count.config(text=str(s)),
+                    self.fail_count.config(text=str(f))
+                ))
+
+            def _get_stop_flag():
+                global STOP_AUTOMATION
+                return STOP_AUTOMATION
+
+            ui_callbacks = {
+                "update_status":      _update_status,
+                "update_progress":    _update_progress,
+                "increment_files":    _increment_files,
+                "increment_files_by": _increment_files_by,
+                "set_counts":         _set_counts,
+                "get_stop_flag":      _get_stop_flag,
+            }
+
+            result           = run_automation_process(ui_callbacks)
+            all_successful   = result["all_successful"]
+            all_failed       = result["all_failed"]
+            mhtml_files      = result["mhtml_files"]
+            execution_folder = result["execution_folder"]
 
-            try:
-                from apptweak_integration import AppTweakIntegration
-                APPTWEAK_AVAILABLE = True
-            except ImportError:
-                APPTWEAK_AVAILABLE = False
-                class AppTweakIntegration:
-                    def __init__(self, *a, **kw): pass
-                    def execute_apptweak_flow(self, *a, **kw): return 0, 0
-
-            try:
-                from automation_engine_initial import execute_universal_flow
-                UNIVERSAL_AVAILABLE = True
-            except ImportError:
-                UNIVERSAL_AVAILABLE = False
-
-            # ── Setup ─────────────────────────────────────────────────────
-            reload_web_platforms()
-            total_countries, urls_per_country, total_tests = calculate_totals()
-
-            logger.info("=" * 60)
-            logger.info("AUTOMATED TESTING - MULTIPLE COUNTRIES & PLATFORMS")
-            logger.info("=" * 60)
-            logger.info(f"📍 Countries to test: {len(COUNTRIES)} countries")
-            logger.info(f"Total URLs to test: {total_tests}")
-
-            active_platforms = [wp for wp in WEB_PLATFORMS if wp.get("active", True)]
-            logger.info(f"🌐 Web Platforms: {', '.join(wp['name'] for wp in active_platforms)}")
-            logger.info("📱 App Platforms: Android & Apple (both automatically)")
-
-            timestamp = datetime.now().strftime("%Y-%m-%d")
-            existing_snapshots = load_existing_snapshots(
-                TARGET_DIR / f"AUTOMATION_{timestamp}"
-            )
-
-            options = Options()
-            for opt in CHROME_OPTIONS:
-                options.add_argument(opt)
-            driver = webdriver.Chrome(options=options)
-            self._driver = driver                      # ← expose to stop_automation()
-            driver.set_page_load_timeout(15)           # ← unblocks after 15s max
-            wait = WebDriverWait(driver, WEBDRIVER_WAIT)
-
-            ensure_directory_exists(TARGET_DIR)
-            execution_folder = TARGET_DIR / f"AUTOMATION_{timestamp}"
-            ensure_directory_exists(execution_folder)
-
-            country_sequence_counters = initialize_counters_from_files(execution_folder, COUNTRIES)
-            logger.info(f"🔢 Initialized counters for {len(COUNTRIES)} countries")
-
-            if APPTWEAK_AVAILABLE:
-                apptweak = AppTweakIntegration(
-                    driver=driver,
-                    execution_folder=execution_folder,
-                    sequence_counters=country_sequence_counters,
-                    existing_snapshots=existing_snapshots
-                )
-                logger.info("✅ AppTweakIntegration initialized")
-            else:
-                apptweak = None
-
-            logger.info(f"📁 Saving to: {execution_folder}")
-
-            all_successful = []
-            all_failed = []
-
-            # Progress denominator: one unit per (country × active platform)
-            total_pairs = sum(
-                1 for _ in COUNTRIES
-                for wp in WEB_PLATFORMS if wp.get("active", True)
-            )
-            completed_pairs = 0
-
-            try:
-                for country_index, country in enumerate(COUNTRIES, 1):
-
-                    # ── STOP CHECK ────────────────────────────────────────
-                    if STOP_AUTOMATION:
-                        logger.warning("⏹️ Stopped before next country.")
-                        break
-
-                    logger.info("=" * 60)
-                    logger.info(f"COUNTRY {country_index}/{total_countries}: "
-                                f"{country['name']} ({country['code']})")
-                    logger.info("=" * 60)
-
-                    # Update status label on UI thread
-                    self.app.root.after(
-                        0, lambda c=country['name']:
-                        self.status_label.config(text=f"Running: {c}")
-                    )
-
-                    if country['number'] not in country_sequence_counters:
-                        country_sequence_counters[country['number']] = 0
-
-                    for web_platform in WEB_PLATFORMS:
-                        if not web_platform.get("active", True):
-                            continue
-
-                        # ── STOP CHECK ────────────────────────────────────
-                        if STOP_AUTOMATION:
-                            logger.warning("⏹️ Stopped before next platform.")
-                            break
-
-                        logger.info(f"🌐 WEB PLATFORM: {web_platform['name']}")
-                        self.app.root.after(
-                            0, lambda p=web_platform['name']:
-                            self.status_label.config(
-                                text=f"Running: {country['name']} / {p}"
-                            )
-                        )
-
-                        # ── AppTweak ──────────────────────────────────────
-                        if web_platform["type"] == "apptweak":
-                            if not APPTWEAK_AVAILABLE or apptweak is None:
-                                logger.warning("⚠ AppTweak disabled")
-                            else:
-                                try:
-                                    seq_before = country_sequence_counters.get(country['number'], 0)
-                                    success_count, total_count = apptweak.execute_apptweak_flow(
-                                        country, web_platform
-                                    )
-                                    seq_after = country_sequence_counters.get(country['number'], 0)
-                                    files_made = seq_after - seq_before
-                                    logger.info(f"      📊 AppTweak created {files_made} files")
-
-                                    for _ in range(success_count):
-                                        all_successful.append((
-                                            country['name'], web_platform['name'],
-                                            "apptweak", "apptweak_category",
-                                            web_platform["base_url"]
-                                        ))
-                                    for _ in range(total_count - success_count):
-                                        all_failed.append((
-                                            country['name'], web_platform['name'],
-                                            "apptweak", "apptweak_category",
-                                            web_platform["base_url"],
-                                            "AppTweak automation failed"
-                                        ))
-
-                                    # ── Sync UI ───────────────────────────
-                                    s, f, fi = len(all_successful), len(all_failed), files_made
-                                    self.app.root.after(0, lambda s=s, f=f: (
-                                        self.success_count.config(text=str(s)),
-                                        self.fail_count.config(text=str(f))
-                                    ))
-                                    self.app.root.after(
-                                        0, lambda fi=fi: self.files_count.config(
-                                            text=str(int(self.files_count.cget("text") or 0) + fi)
-                                        )
-                                    )
-
-                                    time.sleep(DELAYS.get("apptweak_country_delay", 5))
-
-                                except Exception as e:
-                                    logger.error(f"❌ AppTweak failed: {str(e)[:120]}")
-                                    all_failed.append((
-                                        country['name'], web_platform['name'],
-                                        "apptweak", "apptweak", web_platform["base_url"],
-                                        f"AppTweak error: {str(e)[:100]}"
-                                    ))
-
-                            completed_pairs += 1
-                            pct = (completed_pairs / total_pairs * 100)
-                            self.app.root.after(0, lambda p=pct: (
-                                self.progress_bar.configure(value=p),
-                                self.progress_label.configure(text=f"{p:.1f}%")
-                            ))
-                            continue
-
-                        # ── Universal engine ──────────────────────────────
-                        if web_platform["type"] == "universal":
-                            if not UNIVERSAL_AVAILABLE:
-                                logger.warning("⚠ Universal engine disabled")
-                            else:
-                                try:
-                                    seq_before = country_sequence_counters.get(country['number'], 0)
-                                    success_count, total_count = execute_universal_flow(
-                                        driver=driver,
-                                        country_data=country,
-                                        platform_config=web_platform,
-                                        execution_folder=execution_folder,
-                                        sequence_counters=country_sequence_counters,
-                                        existing_snapshots=existing_snapshots
-                                    )
-                                    seq_after = country_sequence_counters.get(country['number'], 0)
-                                    files_made = seq_after - seq_before
-                                    logger.info(f"      📊 Universal created {files_made} files")
-
-                                    for _ in range(success_count):
-                                        all_successful.append((
-                                            country['name'], web_platform['name'],
-                                            "universal", "universal_category",
-                                            web_platform["base_url"]
-                                        ))
-                                    for _ in range(total_count - success_count):
-                                        all_failed.append((
-                                            country['name'], web_platform['name'],
-                                            "universal", "universal_category",
-                                            web_platform["base_url"],
-                                            "Universal automation failed"
-                                        ))
-
-                                    s, f, fi = len(all_successful), len(all_failed), files_made
-                                    self.app.root.after(0, lambda s=s, f=f: (
-                                        self.success_count.config(text=str(s)),
-                                        self.fail_count.config(text=str(f))
-                                    ))
-                                    self.app.root.after(
-                                        0, lambda fi=fi: self.files_count.config(
-                                            text=str(int(self.files_count.cget("text") or 0) + fi)
-                                        )
-                                    )
-
-                                except Exception as e:
-                                    logger.error(f"❌ Universal failed: {str(e)[:120]}")
-                                    all_failed.append((
-                                        country['name'], web_platform['name'],
-                                        "universal", "universal_category",
-                                        web_platform["base_url"],
-                                        f"Universal error: {str(e)[:100]}"
-                                    ))
-
-                            completed_pairs += 1
-                            pct = (completed_pairs / total_pairs * 100)
-                            self.app.root.after(0, lambda p=pct: (
-                                self.progress_bar.configure(value=p),
-                                self.progress_label.configure(text=f"{p:.1f}%")
-                            ))
-                            continue
-
-                        # ── Normal URL processing ─────────────────────────
-                        urls = []
-                        for app_platform in APP_PLATFORMS:
-                            for category in PLATFORM_CATEGORIES[app_platform]:
-                                country_slug = get_country_slug(country, web_platform["type"])
-                                category_slug = slugify(category, web_platform["type"])
-                                url = get_url_for_platform(
-                                    web_platform["base_url"], web_platform["type"],
-                                    app_platform, country_slug, category_slug
-                                )
-                                urls.append((app_platform, category, url))
-
-                        logger.info(f"   ✅ URLs generated: {len(urls)}")
-                        successful_urls = []
-                        failed_urls = []
-
-                        for i, (app_platform, category, url) in enumerate(urls):
-
-                            # ── STOP CHECK ────────────────────────────────
-                            if STOP_AUTOMATION:
-                                logger.warning("⏹️ Stopped mid-URL loop.")
-                                break
-
-                            safe_category = clean_category_name(category).lower()
-                            task_key = (
-                                country["code"],
-                                web_platform["name"].lower(),
-                                app_platform.lower(),
-                                safe_category
-                            )
-
-                            if task_key in existing_snapshots:
-                                logger.info(f"      ⏭️ Already saved: {task_key}")
-                                continue
-
-                            print_progress(i + 1, len(urls), f"   Testing {web_platform['name']}")
-                            logger.info(f"   [{i+1}/{len(urls)}] {app_platform.upper()} - {category}")
-                            logger.info(f"      URL: {url}")
-
-                            try:
-                                test_url_with_retry(driver, url)
-
-                                if is_human_verification(driver):
-                                    if not wait_for_manual_verification(driver):
-                                        logger.warning("      ⏭️ Verification timeout")
-                                        failed_urls.append((
-                                            country['name'], web_platform['name'],
-                                            app_platform, category, url, "Verification timeout"
-                                        ))
-                                        continue
-
-                                wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
-                                time.sleep(2)
-
-                                is_bad, reason = is_page_unusable(driver, web_platform["type"])
-                                if is_bad:
-                                    logger.warning(f"      ⏭️ Skipped: {reason}")
-                                    failed_urls.append((
-                                        country['name'], web_platform['name'],
-                                        app_platform, category, url, reason
-                                    ))
-                                    continue
-
-                            except Exception as e:
-                                logger.error(f"      ❌ Load error: {str(e)[:120]}")
-                                failed_urls.append((
-                                    country['name'], web_platform['name'],
-                                    app_platform, category, url,
-                                    f"Load error: {str(e)[:120]}"
-                                ))
-                                random_sleep(*DELAYS["between_tests"])
-                                continue
-
-                            logger.info("      ✅ Page validated")
-
-                            date_stamp = datetime.now().strftime("%Y%m%d")
-                            sequence_number = get_next_sequence_number(
-                                country, country_sequence_counters
-                            )
-                            base_filename = create_base_filename(
-                                country=country,
-                                sequence=sequence_number,
-                                web_platform=web_platform,
-                                app_platform=app_platform,
-                                category=clean_category_name(category),
-                                date_stamp=date_stamp
-                            )
-
-                            try:
-                                success, result = save_mhtml_snapshot(
-                                    driver=driver,
-                                    base_filename=base_filename,
-                                    folder_path=execution_folder
-                                )
-                                if success:
-                                    logger.info(f"      💾 Saved: {result}")
-                                    existing_snapshots.add(task_key)
-                                    successful_urls.append((
-                                        country['name'], web_platform['name'],
-                                        app_platform, category, url
-                                    ))
-                                    # ── Sync files count to UI ─────────────
-                                    self.app.root.after(
-                                        0, lambda: self.files_count.config(
-                                            text=str(
-                                                int(self.files_count.cget("text") or 0) + 1
-                                            )
-                                        )
-                                    )
-                                    # ── Extract saved MHTML immediately ────
-                                    # Uses the keys already known at save time —
-                                    # no need for callable.py or folder scanning.
-                                    try:
-                                        from scraper_helpers.io import html_from_mhtml_bytes, load_config
-                                        from scraper_pipeline.dispatcher import extract_platform_rows, build_output_rows
-                                        from scraper_helpers.excel import prepare_workbook_for_append, append_rows_to_category_sheets
-                                        from scraper_helpers.console import effective_cap, post_trim_rows
-                                        from scraper_models.constants import HEADERS
-                                        from config import TARGET_DIR
-
-                                        _config     = load_config()
-                                        _cap        = effective_cap(_config.get("max_rows", 10))
-                                        _outfile    = str(TARGET_DIR / "All_platforms.xlsx")
-                                        _base_url   = (_config.get("source_base_url") or "").strip()
-                                        _quarter    = get_current_year_quarter()
-                                        _saved_path = str(execution_folder / f"{base_filename}.mhtml")
-
-                                        # Build country dict matching scraper schema
-                                        _country_dict = {
-                                            "name": country["name"],
-                                            "code": country["code"],
-                                        }
-
-                                        # platform key = web_platform type
-                                        # (same key detect_platform_from_filename uses)
-                                        _platform_key = web_platform["type"]
-
-                                        with open(_saved_path, "rb") as _f:
-                                            _html, _err = html_from_mhtml_bytes(_f.read())
-
-                                        if _html and not _err:
-                                            _plat_name, _rows, _reason = extract_platform_rows(
-                                                _platform_key, _html, _config,
-                                                max_rows=_cap, source_path=_saved_path
-                                            )
-                                            _rows = post_trim_rows(_rows, _cap)
-
-                                            if _rows:
-                                                _final_rows = build_output_rows(
-                                                    _plat_name, _rows,
-                                                    _country_dict, _quarter,
-                                                    _saved_path
-                                                )
-                                                _wb, _ws_map = prepare_workbook_for_append(
-                                                    _outfile,
-                                                    headers=HEADERS,
-                                                    category_sheets=("Music", "Navigation", "Messaging")
-                                                )
-                                                append_rows_to_category_sheets(
-                                                    _ws_map, _final_rows,
-                                                    safe_category,
-                                                    input_dir=str(execution_folder),
-                                                    base_url=_base_url
-                                                )
-                                                _wb.save(_outfile)
-                                                logger.info(
-                                                    f"      📊 Extracted: {len(_final_rows)} rows"
-                                                    f" → {_plat_name} [{safe_category}]"
-                                                )
-                                            else:
-                                                logger.warning(
-                                                    f"      ⚠️ Extract: 0 rows from"
-                                                    f" {_platform_key} ({_reason})"
-                                                )
-                                        else:
-                                            logger.warning(
-                                                f"      ⚠️ Extract: could not parse MHTML"
-                                                f" ({_err})"
-                                            )
-                                    except Exception as _ex:
-                                        logger.error(f"      ❌ Extract failed: {_ex}")
-                                else:
-                                    logger.error(f"      ⚠️ Snapshot error: {result}")
-                                    failed_urls.append((
-                                        country['name'], web_platform['name'],
-                                        app_platform, category, url,
-                                        f"MHTML save error: {result}"
-                                    ))
-                            except Exception as e:
-                                failed_urls.append((
-                                    country['name'], web_platform['name'],
-                                    app_platform, category, url,
-                                    f"MHTML save error: {str(e)[:120]}"
-                                ))
-
-                            # ── Sync success/failed to UI after every URL ──
-                            all_successful.extend(successful_urls[-1:])
-                            all_failed.extend(failed_urls[-1:])
-                            s, f = len(all_successful), len(all_failed)
-                            self.app.root.after(0, lambda s=s, f=f: (
-                                self.success_count.config(text=str(s)),
-                                self.fail_count.config(text=str(f))
-                            ))
-
-                            random_sleep(*DELAYS["between_tests"])
-
-                        completed_pairs += 1
-                        pct = (completed_pairs / total_pairs * 100)
-                        self.app.root.after(0, lambda p=pct: (
-                            self.progress_bar.configure(value=p),
-                            self.progress_label.configure(text=f"{p:.1f}%")
-                        ))
-
-                        logger.info(f"\n   📊 {web_platform['name']} - {country['name']}:")
-                        logger.info(f"      Successful: {len(successful_urls)} / Failed: {len(failed_urls)}")
-
-                    if STOP_AUTOMATION:
-                        break
-
-                    if country_index < total_countries:
-                        logger.info("\n⏳ Next country...")
-                        random_sleep(*DELAYS["between_countries"])
-
-            finally:
-                driver.quit()
-
-            # ── Final summary ─────────────────────────────────────────────
-            logger.info("=" * 60)
-            logger.info("AUTOMATED TESTING COMPLETE" if not STOP_AUTOMATION
-                        else "AUTOMATED TESTING STOPPED BY USER")
-            logger.info("=" * 60)
-
-            total_actual = len(all_successful) + len(all_failed)
-            logger.info(f"Successful: {len(all_successful)} / Failed: {len(all_failed)}")
-            if total_actual:
-                logger.info(f"Overall success rate: {len(all_successful)/total_actual*100:.1f}%")
-
-            mhtml_files = list(execution_folder.glob("*.mhtml"))
-            logger.info(f"💾 Total MHTML files: {len(mhtml_files)} → {execution_folder}")
-
-            # ── ✅ AUTO-SCRAPE: process all saved MHTMLs immediately ──────
-            # Only runs if there are files to process and stop was not requested
-            scrape_result = None
-            if mhtml_files and not STOP_AUTOMATION:
-                logger.info("=" * 60)
-                logger.info("🔄 AUTO-SCRAPE: Processing saved MHTML files...")
-                logger.info("=" * 60)
-                try:
-                    from callable import run_batch_directory
-                    scrape_result = run_batch_directory(
-                        directory=str(execution_folder),
-                        quarter=get_current_year_quarter(),
-                        output_dir=str(TARGET_DIR),
-                        output_filename="All_platforms.xlsx",
-                    )
-                    logger.info(f"✅ Auto-scrape complete:")
-                    logger.info(f"   Processed : {scrape_result['processed']} files")
-                    logger.info(f"   Failures  : {scrape_result['failures']}")
-                    logger.info(f"   Output    : {scrape_result['output_path']}")
-                    for cat, count in scrape_result["by_category"].items():
-                        logger.info(f"   {cat}: {count} row(s)")
-                except Exception as e:
-                    logger.error(f"❌ Auto-scrape failed: {e}")
-                    scrape_result = None
-
-            # ── Completion dialog ─────────────────────────────────────────
             def _show_done():
+                global STOP_AUTOMATION
                 lines = [
-                    f"Successful: {len(all_successful)}",
-                    f"Failed    : {len(all_failed)}",
+                    f"Successful : {len(all_successful)}",
+                    f"Failed     : {len(all_failed)}",
                     f"MHTML files: {len(mhtml_files)}",
                     "",
                     f"{'⏹ Stopped by user' if STOP_AUTOMATION else '✅ Completed successfully'}",
                     "",
                     f"Files saved to:\n{execution_folder}",
+                    "",
+                    "📊 All rows extracted to All_platforms.xlsx",
                 ]
-                if scrape_result:
-                    lines += [
-                        "",
-                        "─── Auto-Scrape Results ───",
-                        f"Processed : {scrape_result['processed']} files",
-                        f"Failures  : {scrape_result['failures']}",
-                        f"Output    : {os.path.basename(scrape_result['output_path'])}",
-                    ]
-                    for cat, count in scrape_result["by_category"].items():
-                        lines.append(f"  {cat}: {count} row(s)")
-                elif mhtml_files and not STOP_AUTOMATION:
-                    lines += ["", "⚠ Auto-scrape failed — check logs."]
                 messagebox.showinfo("Automation Complete", "\n".join(lines))
 
             self.app.root.after(0, _show_done)
@@ -1203,9 +727,6 @@ class AutomationTab(Base):
             self.status_label.config(text="Stopping Automation...")
             self.stop_button.config(state='disabled')
             logging.warning("⏹️ Stop signal sent...")
-            # Kill the driver immediately so any blocking Selenium call
-            # (page load, wait.until, save_mhtml) raises an exception
-            # right away instead of waiting to time out
             if hasattr(self, '_driver') and self._driver:
                 try:
                     self._driver.quit()
@@ -1215,12 +736,9 @@ class AutomationTab(Base):
             self.app.root.after(5000, self.force_stop_if_needed)
 
     def force_stop_if_needed(self):
-        """Called 5s after stop is requested. The thread may still be alive —
-        do NOT reset STOP_AUTOMATION here or the loop will keep running.
-        Just update the UI; the thread's finally block calls automation_finished()."""
+        """Called 5s after stop is requested."""
         if self.stop_flag:
             logging.error("⛔ Force stop confirmed — waiting for thread to exit...")
-            # Keep STOP_AUTOMATION = True so the loop keeps seeing it.
             self.status_label.config(text="Force stopped — waiting for thread...")
 
     def automation_finished(self):
@@ -1230,7 +748,7 @@ class AutomationTab(Base):
         self.stop_flag = False
         self._driver = None
         global STOP_AUTOMATION
-        STOP_AUTOMATION = False      # safe here — thread has fully exited
+        STOP_AUTOMATION = False
 
         self.start_button.config(state='normal')
         self.stop_button.config(state='disabled')
@@ -1270,9 +788,72 @@ class AutomationTab(Base):
         messagebox.showinfo("Copied", "Logs copied to clipboard!")
 
     def filter_logs(self, event=None):
-        self.filter_var_text = self.filter_var.get().lower()
-        self.app.log_manager.filter_logs(self.filter_var_text)
+        query    = self.filter_var.get().strip().lower()
+        level    = self.level_var.get()
+        log_text = self.log_text
+
+        # ── Clear all existing tags ───────────────────────────────────
+        log_text.tag_remove("match_line", "1.0", tk.END)
+        log_text.tag_remove("dim_line",   "1.0", tk.END)
+        log_text.tag_remove("highlight",  "1.0", tk.END)
+
+        log_text.tag_config("match_line", background="#1a3a1a", foreground="#00ff00")
+        log_text.tag_config("dim_line",   foreground="#444444")
+        log_text.tag_config("highlight",  background="#ffff00", foreground="#000000")
+
+        level_keywords = {
+            "INFO":    "INFO",
+            "WARNING": "WARNING",
+            "ERROR":   "ERROR",
+        }
+
+        total_lines = int(log_text.index(tk.END).split(".")[0]) - 1
+        match_count = 0
+
+        for lineno in range(1, total_lines + 1):
+            line_start = f"{lineno}.0"
+            line_end   = f"{lineno}.end"
+            line_text  = log_text.get(line_start, line_end)
+
+            level_match   = level == "ALL" or level_keywords.get(level, "") in line_text
+            keyword_match = not query or query in line_text.lower()
+
+            if level_match and keyword_match:
+                log_text.tag_add("match_line", line_start, line_end)
+                match_count += 1
+
+                # Highlight every occurrence of the keyword within the line
+                if query:
+                    search_start = line_start
+                    while True:
+                        pos = log_text.search(query, search_start,
+                                              stopindex=line_end, nocase=True)
+                        if not pos:
+                            break
+                        end_pos = f"{pos}+{len(query)}c"
+                        log_text.tag_add("highlight", pos, end_pos)
+                        search_start = end_pos
+            else:
+                log_text.tag_add("dim_line", line_start, line_end)
+
+        # ── Update match counter ──────────────────────────────────────
+        if query or level != "ALL":
+            self.match_label.config(
+                text=f"{match_count} match{'es' if match_count != 1 else ''}"
+            )
+        else:
+            self.match_label.config(text="")
+
+        # Keep log_manager in sync
+        self.app.log_manager.filter_logs(query)
 
     def clear_filter(self):
         self.filter_var.set("")
+        self.level_var.set("ALL")
+        self.match_label.config(text="")
+
+        self.log_text.tag_remove("match_line", "1.0", tk.END)
+        self.log_text.tag_remove("dim_line",   "1.0", tk.END)
+        self.log_text.tag_remove("highlight",  "1.0", tk.END)
+
         self.app.log_manager.filter_logs("")

@@ -43,15 +43,23 @@ except ImportError as e:
 
 
 class AppTweakIntegration:
-    def __init__(self, driver, execution_folder, sequence_counters=None, existing_snapshots=None, **kwargs):
+    def __init__(self, driver, execution_folder, sequence_counters=None, existing_snapshots=None,
+                 extract_fn=None, **kwargs):
         """
         Initialize AppTweakIntegration.
+
+        Args:
+            extract_fn: Optional callable with signature
+                        extract_fn(saved_path, platform_key, country, safe_category, execution_folder)
+                        Called immediately after every successful MHTML save so that
+                        scraping happens in-line rather than in a post-hoc batch.
         """
         self.driver = driver
         self.execution_folder = execution_folder
         self.date_stamp = time.strftime("%Y%m%d")
         self.sequence_counters = sequence_counters if sequence_counters else {}
         self.existing_snapshots = existing_snapshots if existing_snapshots else set()
+        self.extract_fn = extract_fn  # ← scrape hook injected from automation_runner
 
    
     def _country_key(self, country_data):
@@ -210,6 +218,25 @@ class AppTweakIntegration:
                             # ✅ ADD TO EXISTING_SNAPSHOTS ON SUCCESS
                             self.existing_snapshots.add(task_key)
                             logger.info(f"\n    ✅ Successfully saved: {result}")
+
+                            # ── Scrape immediately after save ──────────────
+                            if self.extract_fn is not None:
+                                try:
+                                    _saved_path = str(
+                                        self.execution_folder / f"{base_filename}.mhtml"
+                                    )
+                                    # task_key[3] is the safe_category string
+                                    self.extract_fn(
+                                        saved_path=_saved_path,
+                                        platform_key="apptweak",
+                                        country=country_data,
+                                        safe_category=task_key[3],
+                                        execution_folder=self.execution_folder,
+                                    )
+                                except Exception as _ex:
+                                    logger.warning(
+                                        f"    ⚠ Scrape step failed for {base_filename}: {_ex}"
+                                    )
                         else:
                             logger.info(f"\n    ⚠ Failed to save snapshot: {result}")
                     else:
