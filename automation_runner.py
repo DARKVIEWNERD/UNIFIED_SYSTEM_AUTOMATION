@@ -8,6 +8,8 @@ import time
 import logging
 from datetime import datetime
 from pathlib import Path
+import os
+
 
 from logging_config import logger
 from utils.get_Cur_FY import get_current_year_quarter
@@ -456,4 +458,169 @@ def run_automation_process(ui_callbacks):
         "all_failed":       all_failed,
         "mhtml_files":      mhtml_files,
         "execution_folder": execution_folder,
+    }
+
+
+def run_directory_scraping_process(params, ui_callbacks):
+    """
+    MHTML directory scraping process — no tkinter imports, no self.
+
+    Args:
+        params: dict with keys:
+                  directory        — path to folder containing MHTML files
+                  quarter          — e.g. "2025-Q1"
+                  max_rows         — int
+                  output_filename  — e.g. "All_platforms.xlsx"
+                  category_sheets  — list of sheet names
+
+        ui_callbacks: dict of callables provided by AutomationTab:
+                  update_progress(pct)   — set progress bar + label
+                  get_stop_flag()        — returns bool
+                  increment_files()      — bump files_count by 1
+
+    Returns:
+        dict with keys: total, successful, failed, outfile, stopped
+    """
+    from scraper_helpers.console import iter_mhtml_files
+    from scraper_helpers.io import html_from_mhtml_bytes, load_config
+    from scraper_detectors.platform import detect_platform_from_filename
+    from scraper_detectors.country import detect_country_from_filename
+    from scraper_detectors.category import detect_category_from_filename
+    from scraper_pipeline.dispatcher import extract_platform_rows, build_output_rows
+    from scraper_helpers.excel import prepare_workbook_for_append, append_rows_to_category_sheets
+    from scraper_helpers.console import post_trim_rows
+    from scraper_models.constants import HEADERS
+    from config import TARGET_DIR
+
+    dir_path        = params["directory"]
+    quarter         = params["quarter"]
+    max_rows        = params["max_rows"]
+    output_filename = params["output_filename"]
+    category_sheets = params.get("category_sheets", ["Music", "Navigation", "Messaging"])
+
+    update_progress = ui_callbacks["update_progress"]
+    is_stopped      = ui_callbacks["get_stop_flag"]
+    inc_files       = ui_callbacks["increment_files"]
+
+    files = list(iter_mhtml_files(dir_path))
+    files.sort(key=lambda p: os.path.basename(p).lower())
+
+    if not files:
+        logger.warning(f"No MHTML files found in: {dir_path}")
+        return {"total": 0, "successful": 0, "failed": 0,
+                "outfile": "", "stopped": False}
+
+    config   = load_config()
+    outfile  = os.path.join(TARGET_DIR, output_filename)
+    wb, ws_map = prepare_workbook_for_append(
+        outfile, headers=HEADERS,
+        category_sheets=tuple(category_sheets) if category_sheets
+        else ("Music", "Navigation", "Messaging")
+    )
+    base_url = (config.get("source_base_url") or "").strip()
+
+    logger.info(f"🔍 Found {len(files)} MHTML files to process")
+    total      = len(files)
+    successful = 0
+    failed     = 0
+    stopped    = False
+
+    for idx, file_path in enumerate(files, 1):
+        if is_stopped():
+            logger.warning("⏹️ Scraping stopped by user")
+            logger.info(f"   ✅ Completed: {successful} files successfully")
+            logger.info(f"   ⏸️ Stopped at: {os.path.basename(file_path)}")
+            stopped = True
+            break
+
+        filename = os.path.basename(file_path)
+        update_progress((idx / total) * 100)
+
+        try:
+            platform_key  = detect_platform_from_filename(file_path)
+            country_dict  = detect_country_from_filename(file_path)
+            file_category = detect_category_from_filename(file_path)
+
+            if not platform_key:
+                logger.warning(
+                    f"⚠️ [{idx}/{total}] Skipping {filename}: "
+                    "No platform hint from filename"
+                )
+                failed += 1
+                continue
+
+            with open(file_path, "rb") as f:
+                data = f.read()
+            html, err = html_from_mhtml_bytes(data)
+
+            if err or not html:
+                logger.error(
+                    f"❌ [{idx}/{total}] Failed: {filename} - "
+                    f"{err or 'Failed to parse MHTML'}"
+                )
+                failed += 1
+                continue
+
+            plat_name, rows, reason = extract_platform_rows(
+                platform_key, html, config,
+                max_rows=max_rows, source_path=file_path
+            )
+            rows = post_trim_rows(rows, max_rows)
+
+            if not rows:
+                logger.warning(
+                    f"⚠️ [{idx}/{total}] Skipping {filename}: "
+                    f"0 rows from {platform_key} ({reason})"
+                )
+                failed += 1
+                continue
+
+            final_rows = build_output_rows(
+                plat_name, rows, country_dict, quarter, file_path
+            )
+            append_rows_to_category_sheets(
+                ws_map, final_rows, file_category,
+                input_dir=dir_path, base_url=base_url
+            )
+
+            country_info  = f" ({country_dict['code']})" if country_dict else ""
+            category_info = f" [{file_category}]" if file_category else ""
+            logger.info(
+                f"✅ [{idx}/{total}] Processed: {filename} → {len(final_rows)} rows "
+                f"from {plat_name}{country_info}{category_info}"
+            )
+            successful += 1
+            inc_files()
+
+        except Exception as e:
+            logger.error(f"❌ [{idx}/{total}] Failed: {filename} - {str(e)}")
+            failed += 1
+
+    try:
+        wb.save(outfile)
+        logger.info(f"📝 Saved workbook: {outfile}")
+    except Exception as e:
+        logger.error(f"❌ Failed to save workbook: {e}")
+
+    logger.info(f"\n{'=' * 50}")
+    logger.info("✅ SCRAPING COMPLETE" if not stopped else "⏹️ SCRAPING STOPPED")
+    logger.info(f"   Directory : {dir_path}")
+    logger.info(f"   Output    : {outfile}")
+    logger.info(f"   Total     : {total}")
+    logger.info(f"   Successful: {successful}")
+    logger.info(f"   Failed    : {failed}")
+    logger.info(f"{'=' * 50}")
+
+    for cat in category_sheets:
+        ws = ws_map.get(cat)
+        if ws:
+            count = max(0, ws.max_row - 1)
+            logger.info(f"   - {cat}: {count} row(s)")
+
+    return {
+        "total":      total,
+        "successful": successful,
+        "failed":     failed,
+        "outfile":    outfile,
+        "stopped":    stopped,
     }
