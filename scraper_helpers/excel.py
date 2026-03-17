@@ -12,7 +12,7 @@ def append_rows(
     rows,
     *,
     icon_lookup=None,
-    icon_size_px=60
+    icon_size_px=30
 ):
     icon_col_idx = len(HEADERS)
     icon_col_letter = get_column_letter(icon_col_idx)
@@ -89,7 +89,7 @@ def append_rows_to_category_sheets(
     input_dir=None,
     base_url: str = "",
     icon_lookup=None,
-    icon_size_px=60,
+    icon_size_px=30,
 ):
 
     yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
