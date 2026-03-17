@@ -470,153 +470,66 @@ class AutomationTab(Base):
 
         self.start_time = time.time()
         self.update_timer()
-
+        
     def run_directory_scraping(self):
-        """Run the MHTML directory scraping process using filename-first approach"""
-        try:
-            params = self.scrape_params
-            dir_path = params['directory']
-            quarter = params['quarter']
-            max_rows = params['max_rows']
-            output_filename = params['output_filename']
-            category_sheets = params.get('category_sheets', ['Music', 'Navigation', 'Messaging'])
-
-            from scraper_helpers.console import iter_mhtml_files
-            from scraper_helpers.io import html_from_mhtml_bytes, load_config
-            from scraper_detectors.platform import detect_platform_from_filename
-            from scraper_detectors.country import detect_country_from_filename
-            from scraper_detectors.category import detect_category_from_filename
-            from scraper_pipeline.dispatcher import extract_platform_rows, build_output_rows
-            from scraper_helpers.excel import prepare_workbook_for_append, append_rows_to_category_sheets
-            from scraper_helpers.console import post_trim_rows
-            from scraper_models.constants import HEADERS
-            from config import TARGET_DIR
-
-            files = list(iter_mhtml_files(dir_path))
-            files.sort(key=lambda p: os.path.basename(p).lower())
-
-            if not files:
-                logger.warning(f"No MHTML files found in: {dir_path}")
-                self.app.root.after(0, lambda: messagebox.showwarning(
-                    "No Files", "No MHTML files found"))
-                return
-
-            config = load_config()
-            outfile = os.path.join(TARGET_DIR, output_filename)
-            wb, ws_map = prepare_workbook_for_append(
-                outfile, headers=HEADERS,
-                category_sheets=tuple(category_sheets) if category_sheets
-                else ("Music", "Navigation", "Messaging")
-            )
-            base_url = (config.get("source_base_url") or "").strip()
-
-            logger.info(f"🔍 Found {len(files)} MHTML files to process")
-            total = len(files)
-            successful = 0
-            failed = 0
-
-            for idx, file_path in enumerate(files, 1):
-                if STOP_AUTOMATION:
-                    logger.warning("⏹️ Scraping stopped by user")
-                    logger.info(f"   ✅ Completed: {successful} files successfully")
-                    logger.info(f"   ⏸️ Stopped at: {os.path.basename(file_path)}")
-                    break
-
-                filename = os.path.basename(file_path)
-                progress = (idx / total) * 100
-                self.app.root.after(0, lambda p=progress: self.progress_bar.configure(value=p))
-                self.app.root.after(0, lambda p=progress: self.progress_label.configure(
-                    text=f"{p:.1f}%"))
-
-                try:
-                    platform_key = detect_platform_from_filename(file_path)
-                    country_dict = detect_country_from_filename(file_path)
-                    file_category = detect_category_from_filename(file_path)
-
-                    if not platform_key:
-                        logger.warning(f"⚠️ [{idx}/{total}] Skipping {filename}: No platform hint from filename")
-                        failed += 1
-                        continue
-
-                    with open(file_path, "rb") as f:
-                        data = f.read()
-                    html, err = html_from_mhtml_bytes(data)
-
-                    if err or not html:
-                        logger.error(f"❌ [{idx}/{total}] Failed: {filename} - {err or 'Failed to parse MHTML'}")
-                        failed += 1
-                        continue
-
-                    plat_name, rows, reason = extract_platform_rows(
-                        platform_key, html, config,
-                        max_rows=max_rows, source_path=file_path
-                    )
-                    rows = post_trim_rows(rows, max_rows)
-
-                    if not rows:
-                        logger.warning(f"⚠️ [{idx}/{total}] Skipping {filename}: 0 rows from {platform_key} ({reason})")
-                        failed += 1
-                        continue
-
-                    final_rows = build_output_rows(plat_name, rows, country_dict, quarter, file_path)
-                    append_rows_to_category_sheets(
-                        ws_map, final_rows, file_category,
-                        input_dir=dir_path, base_url=base_url
-                    )
-
-                    country_info = f" ({country_dict['code']})" if country_dict else ""
-                    category_info = f" [{file_category}]" if file_category else ""
-                    logger.info(
-                        f"✅ [{idx}/{total}] Processed: {filename} → {len(final_rows)} rows "
-                        f"from {plat_name}{country_info}{category_info}"
-                    )
-                    successful += 1
-
-                except Exception as e:
-                    logger.error(f"❌ [{idx}/{total}] Failed: {filename} - {str(e)}")
-                    failed += 1
-
+            """Thin wrapper — UI wiring only.
+            All business logic lives in automation_runner.run_directory_scraping_process().
+            """
             try:
-                wb.save(outfile)
-                logger.info(f"📝 Saved workbook: {outfile}")
+                from automation_runner import run_directory_scraping_process
+
+                def _update_progress(pct):
+                    self.app.root.after(0, lambda p=pct: (
+                        self.progress_bar.configure(value=p),
+                        self.progress_label.configure(text=f"{p:.1f}%")
+                    ))
+
+                def _increment_files():
+                    self.app.root.after(0, lambda: self.files_count.config(
+                        text=str(int(self.files_count.cget("text") or 0) + 1)
+                    ))
+
+                def _get_stop_flag():
+                    global STOP_AUTOMATION
+                    return STOP_AUTOMATION
+
+                ui_callbacks = {
+                    "update_progress": _update_progress,
+                    "increment_files": _increment_files,
+                    "get_stop_flag":   _get_stop_flag,
+                }
+
+                result = run_directory_scraping_process(self.scrape_params, ui_callbacks)
+
+                total      = result["total"]
+                successful = result["successful"]
+                failed     = result["failed"]
+                outfile    = result["outfile"]
+                stopped    = result["stopped"]
+
+                def _show_done():
+                    if total == 0:
+                        messagebox.showwarning("No Files", "No MHTML files found")
+                        return
+                    messagebox.showinfo(
+                        "Scraping Complete",
+                        f"Directory : {self.scrape_params['directory']}\n\n"
+                        f"Output    : {os.path.basename(outfile)}\n"
+                        f"Total     : {total}\n"
+                        f"Successful: {successful}\n"
+                        f"Failed    : {failed}\n"
+                        f"{'⏹ Stopped by user' if stopped else '✅ Completed successfully'}\n\n"
+                        f"Check logs for details."
+                    )
+
+                self.app.root.after(0, _show_done)
+
             except Exception as e:
-                logger.error(f"❌ Failed to save workbook: {e}")
-
-            logger.info(f"\n{'=' * 50}")
-            logger.info(f"✅ SCRAPING COMPLETE")
-            logger.info(f"   Directory: {dir_path}")
-            logger.info(f"   Output: {outfile}")
-            logger.info(f"   Total files: {total}")
-            logger.info(f"   Successful: {successful}")
-            logger.info(f"   Failed: {failed}")
-            if STOP_AUTOMATION:
-                logger.info(f"   ⏹️ Stopped by user")
-            logger.info(f"{'=' * 50}")
-
-            for cat in category_sheets:
-                ws = ws_map.get(cat)
-                if ws:
-                    count = max(0, ws.max_row - 1)
-                    logger.info(f"   - {cat}: {count} row(s)")
-
-            self.app.root.after(0, lambda: messagebox.showinfo(
-                "Scraping Complete",
-                f"Directory: {dir_path}\n\n"
-                f"Output: {os.path.basename(outfile)}\n"
-                f"Total files: {total}\n"
-                f"Successful: {successful}\n"
-                f"Failed: {failed}\n"
-                f"{'Stopped by user' if STOP_AUTOMATION else 'Completed successfully'}\n\n"
-                f"Check logs for details."
-            ))
-
-        except Exception as e:
-            logger.error(f"❌ Scraping error: {e}")
-            self.app.root.after(0, lambda: messagebox.showerror(
-                "Error", f"Scraping failed: {str(e)}"))
-        finally:
-            self.app.root.after(0, self.automation_finished)
-
+                logging.error(f"Directory scraping error: {e}")
+                self.app.root.after(0, lambda: messagebox.showerror(
+                    "Error", f"Scraping failed: {str(e)}"))
+            finally:
+                self.app.root.after(0, self.automation_finished)
     # ========== Automation Methods ==========
 
     def start_automation(self):
