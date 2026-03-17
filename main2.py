@@ -49,7 +49,7 @@ class AutomationGUI:
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         
     def setup_styles(self):
-        """Configure ttk styles for modern look"""
+   
         style = ttk.Style()
         style.configure('Header.TLabel', font=UIConstants.FONTS['header'])
         style.configure('SubHeader.TLabel', font=UIConstants.FONTS['subheader'], foreground='gray')
