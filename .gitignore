@@ -4,3 +4,12 @@ venv/
 desktop.ini
 output/
 _pycache_/
+tabs/__pycache__/
+managers/__pycache__/
+models/__pycache__/
+scraper_detectors/__pycache__/
+scraper_extractors/__pycache__/
+scraper_helpers/__pycache__/
+scraper_pipeline/__pycache__/
+utils/__pycache__/
+*.pyc
