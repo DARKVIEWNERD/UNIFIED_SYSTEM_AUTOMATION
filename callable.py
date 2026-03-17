@@ -4,17 +4,18 @@ import sys
 import argparse
 from datetime import datetime
 
-from scraper_helpers.io import load_config, html_from_mhtml_bytes, safe_filename
-from scraper_helpers.console import (
+from helpers.io import load_config, html_from_mhtml_bytes, safe_filename
+from helpers.console import (
     clear_screen, prompt_input, progress_bar, iter_mhtml_files,
     effective_cap, post_trim_rows
 )
-from scraper_helpers.excel import prepare_workbook_for_append, append_rows_to_category_sheets
-from scraper_models.constants import HEADERS
-from scraper_detectors.platform import detect_platform_from_filename
-from scraper_detectors.country import detect_country_from_filename
-from scraper_detectors.category import detect_category_from_filename
-from scraper_pipeline.dispatcher import extract_platform_rows, build_output_rows
+from helpers.mhtml_images import build_icon_lookup
+from helpers.excel import prepare_workbook_for_append, append_rows_to_category_sheets
+from models.constants import HEADERS
+from detector.platform import detect_platform_from_filename
+from detector.country import detect_country_from_filename
+from detector.category import detect_category_from_filename
+from pipeline.dispatcher import extract_platform_rows, build_output_rows
 
 
 DEBUG = False
@@ -74,11 +75,12 @@ def run_batch_directory(
     for idx, path in enumerate(files, start=1):
         base = os.path.basename(path)
         try:
-           
+            if DEBUG:
+                progress_bar(idx - 1, len(files))
 
             # 1) Detect platform/country/category from filename
             platform_key = detect_platform_from_filename(path)
-            country_dict = detect_country_from_filename(path)
+            country_code = detect_country_from_filename(path)
             file_category = detect_category_from_filename(path)
             if not platform_key:
                 msg = f"{base}: No platform hint from filename. Skipping."
@@ -88,12 +90,14 @@ def run_batch_directory(
 
             # 2) Parse MHTML -> HTML
             with open(path, "rb") as f:
-                html, err = html_from_mhtml_bytes(f.read())
+                raw_mhtml = f.read()
+            html, err = html_from_mhtml_bytes(raw_mhtml)
             if err or not html:
                 msg = f"{base}: {err or 'Failed to parse MHTML'}"
                 messages.append("✖ " + msg)
                 failures += 1
                 continue
+            icon_lookup = build_icon_lookup(raw_mhtml)
 
             # 3) Extract rows using dispatcher (platform-specific extractors)
             plat_name, rows, reason = extract_platform_rows(
@@ -107,15 +111,23 @@ def run_batch_directory(
                 continue
 
             # 4) Map to your fixed schema
-            final_rows = build_output_rows(plat_name, rows, country_dict, quarter or "Unknown", path)
+            final_rows = build_output_rows(
+                plat_name,
+                rows,
+                country_code,
+                quarter or "Unknown",
+                path
+            )
 
             # 5) Append to Excel sheets
-            append_rows_to_category_sheets(ws_map, final_rows, file_category, input_dir=directory, base_url=base_url)
+            append_rows_to_category_sheets(ws_map, final_rows, file_category, input_dir=directory, base_url=base_url, icon_lookup=icon_lookup, )
 
+            if DEBUG:
+                progress_bar(idx, len(files))
 
             ok_msg = (f"{base}: {len(final_rows)} rows → {plat_name}"
                       + (f" (category: {file_category})" if file_category else "")
-                      + (f" (country: {country_dict['code']})" if country_dict else ""))
+                      + (f" (country: {country_code})" if country_code else ""))
             messages.append("✔ " + ok_msg)
 
         except Exception as e:

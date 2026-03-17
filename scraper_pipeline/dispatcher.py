@@ -1,7 +1,7 @@
-# scraper_extractors/custom.py
+# extractors/custom.py
 from bs4 import BeautifulSoup
-from scraper_helpers.io import bs_kwargs
-from scraper_helpers.text import looks_like_bad_publisher, clean_publisher_text, score_publisher_candidate
+from helpers.io import bs_kwargs
+from helpers.text import looks_like_bad_publisher, clean_publisher_text, score_publisher_candidate
 
 def _narrow_by_main_containers(soup, main_selectors, index):
     current = soup
@@ -16,13 +16,13 @@ def _narrow_by_main_containers(soup, main_selectors, index):
     return current, "ok"
 # pipeline/dispatcher.py
 import os
-from scraper_detectors.store import detect_store
-from scraper_detectors.category import classify_category_by_content
-from scraper_helpers.util import filename_tokens_lower
-from scraper_extractors.similarweb import extract_similarweb
-from scraper_extractors.appfollow import extract_appfollow
-from scraper_extractors.sensortower import extract_sensortower, extract_sensortower_via_selenium
-from scraper_extractors.custom import extract_custom_platform
+from detector.store import detect_store
+from detector.category import classify_category_by_content
+from helpers.util import filename_tokens_lower
+from extractors.similarweb import extract_similarweb
+from extractors.appfollow import extract_appfollow
+from extractors.sensortower import extract_sensortower, extract_sensortower_via_selenium
+from extractors.custom import extract_custom_platform
 
 def extract_platform_rows(platform_key: str, html: str, config: dict, *, max_rows=None, source_path=None):
     """
@@ -151,12 +151,12 @@ def extract_platform_rows(platform_key: str, html: str, config: dict, *, max_row
     return platform_key or "", [], "No extractor for hinted platform"
 
 
-def build_output_rows(platform_name, extracted_rows, country_dict, quarter_str, source_label):
+def build_output_rows(platform_name, extracted_rows, country_code, quarter_str, source_label):
     """
     Map platform-specific rows [publisher, app_name, app_link] into the fixed schema.
     Also classify content category so the writer knows the target sheet.
     """
-    country_name = country_dict["name"] if country_dict else ""
+    country_code = country_code if country_code else ""
     source_path = os.path.abspath(source_label) if source_label else ""
 
     rows_out = []
@@ -167,7 +167,7 @@ def build_output_rows(platform_name, extracted_rows, country_dict, quarter_str, 
         store = detect_store(os.path.basename(source_path), app_link)
         row = [
             quarter_str,       # 1 Quarter
-            country_name,      # 2 Country
+            country_code,      # 2 Country
             store,             # 3 Android or Apple
             idx,               # 4 Rank
             publisher,         # 5 Publisher

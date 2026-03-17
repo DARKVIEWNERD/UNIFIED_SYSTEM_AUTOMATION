@@ -2,6 +2,44 @@
 import os
 from openpyxl import load_workbook, Workbook
 from openpyxl.styles import PatternFill, Font
+# helpers/excel.py
+from openpyxl.drawing.image import Image as XLImage
+from openpyxl.utils import get_column_letter
+from scraper_models.constants import HEADERS
+
+def append_rows(
+    ws,
+    rows,
+    *,
+    icon_lookup=None,
+    icon_size_px=60
+):
+    icon_col_idx = len(HEADERS)
+    icon_col_letter = get_column_letter(icon_col_idx)
+
+    for r_idx, row in enumerate(rows, start=ws.max_row + 1):
+
+        # write text values
+        for c_idx, val in enumerate(row, start=1):
+            ws.cell(row=r_idx, column=c_idx, value=val)
+
+        # ✅ embed icon
+        if callable(icon_lookup):
+            try:
+                app_name = row[5] if len(row) > 5 else ""
+                app_link = row[6] if len(row) > 6 else ""
+                bio = icon_lookup(app_link, app_name)
+            except Exception:
+                bio = None
+
+            if bio:
+                img = XLImage(bio)
+                img.width = icon_size_px
+                img.height = icon_size_px
+                ws.add_image(img, f"{icon_col_letter}{r_idx}")
+
+                # adjust row height
+                ws.row_dimensions[r_idx].height = icon_size_px / 0.75
 
 def prepare_workbook_for_append(output_file: str, headers: list, category_sheets=("Music","Navigation","Messaging")):
     out_dir = os.path.dirname(output_file)
@@ -34,10 +72,26 @@ def prepare_workbook_for_append(output_file: str, headers: list, category_sheets
         if ws0.max_row <= 1 and ws0.max_column <= 1 and (ws0["A1"].value in (None, "")):
             wb.remove(ws0)
 
+    icon_col_letter = get_column_letter(len(headers))
+
+    for ws in ws_map.values():
+        ws.column_dimensions[icon_col_letter].width = 11  # fits ~60px icon
+
     return wb, ws_map
 
 
-def append_rows_to_category_sheets(ws_map: dict, rows_out: list, file_category: str, *, input_dir=None, base_url: str = ""):
+
+def append_rows_to_category_sheets(
+    ws_map: dict,
+    rows_out: list,
+    file_category: str,
+    *,
+    input_dir=None,
+    base_url: str = "",
+    icon_lookup=None,
+    icon_size_px=60,
+):
+
     yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
 
     def _to_hyperlink(source_path: str):
@@ -82,6 +136,26 @@ def append_rows_to_category_sheets(ws_map: dict, rows_out: list, file_category: 
                     cell.value = display
                     cell.hyperlink = url
                     cell.style = "Hyperlink"
+        # === Embed App Icon (last column) ===
+        if callable(icon_lookup):
+            try:
+                app_name = row[5] if len(row) > 5 else ""
+                app_link = row[6] if len(row) > 6 else ""
+                bio = icon_lookup(app_link, app_name)
+            except Exception:
+                bio = None
+
+            if bio:
+                icon_col_letter = get_column_letter(len(HEADERS))
+                img = XLImage(bio)
+                img.width = icon_size_px
+                img.height = icon_size_px
+
+                ws.add_image(img, f"{icon_col_letter}{i}")
+                ws.row_dimensions[i].height = max(
+                    ws.row_dimensions[i].height or 0,
+                    icon_size_px / 0.75
+                )
 
         # Highlight Rank == 1 (col 4)
         try:
