@@ -19,10 +19,17 @@ from utils.get_Cur_FY import get_current_year_quarter
 # SHARED EXTRACT HELPER
 # ==========================================
 
-def extract_and_append(saved_path, platform_key, country_code, safe_category, execution_folder):
-    """Extract rows from a saved MHTML and append to All_platforms.xlsx."""
+def extract_and_append(saved_path, platform_key=None, country_code=None, safe_category=None, execution_folder=None):
+    """Extract rows from a saved MHTML and append to All_platforms.xlsx.
+
+    platform_key, country_code, and safe_category are always derived from
+    the filename — any passed-in values are ignored. This makes the function
+    robust regardless of what the caller passes.
+    """
     try:
-        
+        from scraper_detectors.platform import detect_platform_from_filename
+        from scraper_detectors.country import detect_country_from_filename
+        from scraper_detectors.category import detect_category_from_filename
         from scraper_helpers.io import html_from_mhtml_bytes, load_config
         from scraper_pipeline.dispatcher import extract_platform_rows, build_output_rows
         from scraper_helpers.excel import (
@@ -34,11 +41,20 @@ def extract_and_append(saved_path, platform_key, country_code, safe_category, ex
         from scraper_models.constants import HEADERS
         from config import TARGET_DIR
 
-        config = load_config()
-        cap = effective_cap(config.get("max_rows", 10))
-        outfile = str(TARGET_DIR / "All_platforms.xlsx")
+        # Always derive from filename — ignores whatever was passed in
+        platform_key  = detect_platform_from_filename(saved_path)
+        country_code  = detect_country_from_filename(saved_path)
+        safe_category = detect_category_from_filename(saved_path)
+
+        if not platform_key:
+            logger.warning(f" ⚠️ Extract: could not detect platform from filename: {saved_path}")
+            return
+
+        config   = load_config()
+        cap      = effective_cap(config.get("max_rows", 10))
+        outfile  = str(TARGET_DIR / "All_platforms.xlsx")
         base_url = (config.get("source_base_url") or "").strip()
-        quarter = get_current_year_quarter()
+        quarter  = get_current_year_quarter()
 
         with open(saved_path, "rb") as f:
             raw_mhtml = f.read()
@@ -81,18 +97,19 @@ def extract_and_append(saved_path, platform_key, country_code, safe_category, ex
             ws_map,
             final_rows,
             safe_category,
-            input_dir=str(execution_folder),
+            input_dir=str(execution_folder) if execution_folder else str(Path(saved_path).parent),
             base_url=base_url,
             icon_lookup=icon_lookup
         )
 
         wb.save(outfile)
         logger.info(
-            f" 📊 Extracted: {len(final_rows)} rows → {plat_name} [{safe_category}]"
+            f" 📊 Extracted: {len(final_rows)} rows → {plat_name} [{safe_category}] ({country_code})"
         )
 
     except Exception as e:
         logger.error(f" ❌ Extract failed: {e}")
+
 
 # ==========================================
 # MAIN AUTOMATION ENTRY POINT
@@ -140,7 +157,6 @@ def run_automation_process(ui_callbacks):
         create_base_filename, load_existing_snapshots,
         initialize_counters_from_files
     )
-    from scraper_detectors.category import detect_category_from_filename
 
     try:
         from apptweak_integration import AppTweakIntegration
@@ -158,12 +174,12 @@ def run_automation_process(ui_callbacks):
         UNIVERSAL_AVAILABLE = False
 
     # Shorthand helpers so the loop stays readable
-    is_stopped       = ui_callbacks["get_stop_flag"]
-    update_status    = ui_callbacks["update_status"]
-    update_progress  = ui_callbacks["update_progress"]
-    inc_files        = ui_callbacks["increment_files"]
-    inc_files_by     = ui_callbacks["increment_files_by"]
-    set_counts       = ui_callbacks["set_counts"]
+    is_stopped      = ui_callbacks["get_stop_flag"]
+    update_status   = ui_callbacks["update_status"]
+    update_progress = ui_callbacks["update_progress"]
+    inc_files       = ui_callbacks["increment_files"]
+    inc_files_by    = ui_callbacks["increment_files_by"]
+    set_counts      = ui_callbacks["set_counts"]
 
     # ── Setup ─────────────────────────────────────────────────────────────
     reload_web_platforms()
@@ -179,8 +195,8 @@ def run_automation_process(ui_callbacks):
     logger.info(f"🌐 Web Platforms: {', '.join(wp['name'] for wp in active_platforms)}")
     logger.info("📱 App Platforms: Android & Apple (both automatically)")
 
-    timestamp         = datetime.now().strftime("%Y-%m-%d")
-    execution_folder  = TARGET_DIR / f"AUTOMATION_{timestamp}"
+    timestamp          = datetime.now().strftime("%Y-%m-%d")
+    execution_folder   = TARGET_DIR / f"AUTOMATION_{timestamp}"
     existing_snapshots = load_existing_snapshots(execution_folder)
 
     options = Options()
@@ -203,15 +219,15 @@ def run_automation_process(ui_callbacks):
             execution_folder=execution_folder,
             sequence_counters=country_sequence_counters,
             existing_snapshots=existing_snapshots,
-            extract_fn=extract_and_append,   # ← scrape every key inline
+            extract_fn=extract_and_append,   # ← filename-based detection handles everything
         )
         logger.info("✅ AppTweakIntegration initialized")
 
     logger.info(f"📁 Saving to: {execution_folder}")
 
-    all_successful = []
-    all_failed     = []
-    total_pairs    = sum(1 for _ in COUNTRIES for wp in WEB_PLATFORMS if wp.get("active", True))
+    all_successful  = []
+    all_failed      = []
+    total_pairs     = sum(1 for _ in COUNTRIES for wp in WEB_PLATFORMS if wp.get("active", True))
     completed_pairs = 0
 
     try:
@@ -254,8 +270,6 @@ def run_automation_process(ui_callbacks):
                             seq_after  = country_sequence_counters.get(country['number'], 0)
                             files_made = seq_after - seq_before
                             logger.info(f"      📊 AppTweak created {files_made} files")
-                            # Scraping is handled inline inside AppTweakIntegration
-                            # (extract_fn fires immediately after each MHTML save)
 
                             for _ in range(success_count):
                                 all_successful.append((country['name'], web_platform['name'],
@@ -295,13 +309,11 @@ def run_automation_process(ui_callbacks):
                                 execution_folder=execution_folder,
                                 sequence_counters=country_sequence_counters,
                                 existing_snapshots=existing_snapshots,
-                                extract_fn=extract_and_append,  # ← scrape every key inline
+                                extract_fn=extract_and_append, 
                             )
                             seq_after  = country_sequence_counters.get(country['number'], 0)
                             files_made = seq_after - seq_before
                             logger.info(f"      📊 Universal created {files_made} files")
-                            # Scraping is handled inline inside execute_universal_flow
-                            # (extract_fn fires immediately after each MHTML save)
 
                             for _ in range(success_count):
                                 all_successful.append((country['name'], web_platform['name'],
@@ -420,12 +432,9 @@ def run_automation_process(ui_callbacks):
                                                     app_platform, category, url))
                             inc_files()
 
-                            # Extract this MHTML immediately
+                            # Extract immediately — platform/country/category derived from filename
                             extract_and_append(
                                 saved_path=str(execution_folder / f"{base_filename}.mhtml"),
-                                platform_key=web_platform["type"],
-                                country=country,
-                                safe_category=safe_category,
                                 execution_folder=execution_folder
                             )
                         else:
@@ -558,7 +567,7 @@ def run_directory_scraping_process(params, ui_callbacks):
 
         try:
             platform_key  = detect_platform_from_filename(file_path)
-            country_code = detect_country_from_filename(file_path)
+            country_code  = detect_country_from_filename(file_path)
             file_category = detect_category_from_filename(file_path)
 
             if not platform_key:
@@ -581,7 +590,6 @@ def run_directory_scraping_process(params, ui_callbacks):
                 failed += 1
                 continue
 
-            # ✅ SAME AS callable.py
             icon_lookup = build_icon_lookup(raw_mhtml)
 
             if err or not html:
@@ -615,11 +623,10 @@ def run_directory_scraping_process(params, ui_callbacks):
                 file_category,
                 input_dir=dir_path,
                 base_url=base_url,
-                icon_lookup=icon_lookup,  
+                icon_lookup=icon_lookup,
             )
 
-
-            country_info = f" ({country_code})" if country_code else ""
+            country_info  = f" ({country_code})" if country_code else ""
             category_info = f" [{file_category}]" if file_category else ""
             logger.info(
                 f"✅ [{idx}/{total}] Processed: {filename} → {len(final_rows)} rows "

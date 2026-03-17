@@ -716,11 +716,6 @@ def execute_universal_flow(
                         )
                         extract_fn(
                             saved_path=_saved_path,
-                            platform_key=platform_config.get(
-                                "name", platform_name.lower()
-                            ),
-                            country=country_data,
-                            safe_category=safe_category,
                             execution_folder=execution_folder,
                         )
                     except Exception as _ex:

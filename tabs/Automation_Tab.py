@@ -453,8 +453,8 @@ class AutomationTab(Base):
         self.stop_button.config(state='normal')
         self.status_indicator.config(foreground='green')
         self.status_label.config(text=f"Scraping: {os.path.basename(directory)}")
-        self.progress_bar['value'] = 0
-        self.progress_label.config(text="0%")
+
+        self._reset_ui_state()
 
         self.scrape_params = {
             'directory': directory,
@@ -467,8 +467,6 @@ class AutomationTab(Base):
         self.automation_thread = threading.Thread(
             target=self.run_directory_scraping, daemon=True)
         self.automation_thread.start()
-
-        self.start_time = time.time()
         self.update_timer()
         
     def run_directory_scraping(self):
@@ -532,6 +530,19 @@ class AutomationTab(Base):
                 self.app.root.after(0, self.automation_finished)
     # ========== Automation Methods ==========
 
+    def _reset_ui_state(self):
+        """Reset all UI elements to a clean state before every new run."""
+        self.progress_bar['value'] = 0
+        self.progress_label.config(text="0%")
+        self.success_count.config(text="0")
+        self.fail_count.config(text="0")
+        self.files_count.config(text="0")
+        self.elapsed_time.config(text="00:00:00")
+        self.log_count_label.config(text="Entries: 0")
+        self.log_text.delete(1.0, tk.END)
+        self.app.log_manager.clear_logs()
+        self.start_time = time.time()
+
     def start_automation(self):
         """Start the automation in a separate thread"""
         if self.is_running:
@@ -547,12 +558,11 @@ class AutomationTab(Base):
         self.stop_button.config(state='normal')
         self.status_indicator.config(foreground='green')
         self.status_label.config(text="Automation Running...")
-        self.log_text.delete(1.0, tk.END)
+
+        self._reset_ui_state()
 
         self.automation_thread = threading.Thread(target=self.run_automation, daemon=True)
         self.automation_thread.start()
-
-        self.start_time = time.time()
         self.update_timer()
 
     def run_automation(self):
