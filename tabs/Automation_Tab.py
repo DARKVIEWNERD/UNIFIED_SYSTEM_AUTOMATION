@@ -298,7 +298,7 @@ class AutomationTab(Base):
         filter_entry.bind('<KeyRelease>', self.filter_logs)
 
         ttk.Button(filter_frame, text="Clear Filter",
-                   command=self.clear_filter).pack(side='left', padx=5)
+                   command=self.clear_filter).pack(side='left', padx=10)
 
         # Live match counter — updated by filter_logs on every keystroke or combo change
         self.match_label = ttk.Label(filter_frame, text="", foreground='gray')
