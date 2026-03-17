@@ -19,61 +19,80 @@ from utils.get_Cur_FY import get_current_year_quarter
 # SHARED EXTRACT HELPER
 # ==========================================
 
-def extract_and_append(saved_path, platform_key, country, safe_category, execution_folder):
-    """Extract rows from a saved MHTML and append to All_platforms.xlsx.
-    Called immediately after every MHTML save across all three platform paths
-    (normal URL, apptweak, universal) so no end-of-run batch scrape is needed."""
+def extract_and_append(saved_path, platform_key, country_code, safe_category, execution_folder):
+    """Extract rows from a saved MHTML and append to All_platforms.xlsx."""
     try:
+        
         from scraper_helpers.io import html_from_mhtml_bytes, load_config
         from scraper_pipeline.dispatcher import extract_platform_rows, build_output_rows
-        from scraper_helpers.excel import prepare_workbook_for_append, append_rows_to_category_sheets
+        from scraper_helpers.excel import (
+            prepare_workbook_for_append,
+            append_rows_to_category_sheets,
+        )
         from scraper_helpers.console import effective_cap, post_trim_rows
+        from scraper_helpers.mhtml_images import build_icon_lookup
         from scraper_models.constants import HEADERS
         from config import TARGET_DIR
 
-        _config   = load_config()
-        _cap      = effective_cap(_config.get("max_rows", 10))
-        _outfile  = str(TARGET_DIR / "All_platforms.xlsx")
-        _base_url = (_config.get("source_base_url") or "").strip()
-        _quarter  = get_current_year_quarter()
+        config = load_config()
+        cap = effective_cap(config.get("max_rows", 10))
+        outfile = str(TARGET_DIR / "All_platforms.xlsx")
+        base_url = (config.get("source_base_url") or "").strip()
+        quarter = get_current_year_quarter()
 
-        _country_dict = {"name": country["name"], "code": country["code"]}
+        with open(saved_path, "rb") as f:
+            raw_mhtml = f.read()
 
-        with open(saved_path, "rb") as _f:
-            _html, _err = html_from_mhtml_bytes(_f.read())
-
-        if not _html or _err:
-            logger.warning(f"      ⚠️ Extract: could not parse MHTML ({_err})")
+        html, err = html_from_mhtml_bytes(raw_mhtml)
+        if not html or err:
+            logger.warning(f" ⚠️ Extract: could not parse MHTML ({err})")
             return
 
-        _plat_name, _rows, _reason = extract_platform_rows(
-            platform_key, _html, _config,
-            max_rows=_cap, source_path=saved_path
-        )
-        _rows = post_trim_rows(_rows, _cap)
+        icon_lookup = build_icon_lookup(raw_mhtml)
 
-        if not _rows:
-            logger.warning(f"      ⚠️ Extract: 0 rows from {platform_key} ({_reason})")
+        plat_name, rows, reason = extract_platform_rows(
+            platform_key,
+            html,
+            config,
+            max_rows=cap,
+            source_path=saved_path,
+        )
+
+        rows = post_trim_rows(rows, cap)
+        if not rows:
+            logger.warning(f" ⚠️ Extract: 0 rows from {platform_key} ({reason})")
             return
 
-        _final_rows = build_output_rows(
-            _plat_name, _rows, _country_dict, _quarter, saved_path
+        final_rows = build_output_rows(
+            plat_name,
+            rows,
+            country_code,
+            quarter,
+            saved_path,
         )
-        _wb, _ws_map = prepare_workbook_for_append(
-            _outfile, headers=HEADERS,
-            category_sheets=("Music", "Navigation", "Messaging")
+
+        wb, ws_map = prepare_workbook_for_append(
+            outfile,
+            headers=HEADERS,
+            category_sheets=("Music", "Navigation", "Messaging"),
         )
+
         append_rows_to_category_sheets(
-            _ws_map, _final_rows, safe_category,
+            ws_map,
+            final_rows,
+            safe_category,
             input_dir=str(execution_folder),
-            base_url=_base_url
+            base_url=base_url,
+            icon_lookup=icon_lookup
         )
-        _wb.save(_outfile)
-        logger.info(f"      📊 Extracted: {len(_final_rows)} rows → {_plat_name} [{safe_category}]")
+
+        wb.save(outfile)
+        logger.info(
+            f" 📊 Extracted: {len(final_rows)} rows → {plat_name} [{safe_category}]"
+        )
 
     except Exception as e:
-        logger.error(f"      ❌ Extract failed: {e}")
-
+        logger.error(f" ❌ Extract failed: {e}")
 
 # ==========================================
 # MAIN AUTOMATION ENTRY POINT
@@ -538,7 +557,7 @@ def run_directory_scraping_process(params, ui_callbacks):
 
         try:
             platform_key  = detect_platform_from_filename(file_path)
-            country_dict  = detect_country_from_filename(file_path)
+            country_code = detect_country_from_filename(file_path)
             file_category = detect_category_from_filename(file_path)
 
             if not platform_key:
@@ -576,14 +595,14 @@ def run_directory_scraping_process(params, ui_callbacks):
                 continue
 
             final_rows = build_output_rows(
-                plat_name, rows, country_dict, quarter, file_path
+                plat_name, rows, country_code, quarter, file_path
             )
             append_rows_to_category_sheets(
                 ws_map, final_rows, file_category,
                 input_dir=dir_path, base_url=base_url
             )
 
-            country_info  = f" ({country_dict['code']})" if country_dict else ""
+            country_info = f" ({country_code})" if country_code else ""
             category_info = f" [{file_category}]" if file_category else ""
             logger.info(
                 f"✅ [{idx}/{total}] Processed: {filename} → {len(final_rows)} rows "

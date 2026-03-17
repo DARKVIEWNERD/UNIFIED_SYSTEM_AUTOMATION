@@ -4,18 +4,18 @@ import sys
 import argparse
 from datetime import datetime
 
-from helpers.io import load_config, html_from_mhtml_bytes, safe_filename
-from helpers.console import (
+from scraper_helpers.io import load_config, html_from_mhtml_bytes, safe_filename
+from scraper_helpers.console import (
     clear_screen, prompt_input, progress_bar, iter_mhtml_files,
     effective_cap, post_trim_rows
 )
-from helpers.mhtml_images import build_icon_lookup
-from helpers.excel import prepare_workbook_for_append, append_rows_to_category_sheets
-from models.constants import HEADERS
-from detector.platform import detect_platform_from_filename
-from detector.country import detect_country_from_filename
-from detector.category import detect_category_from_filename
-from pipeline.dispatcher import extract_platform_rows, build_output_rows
+from scraper_helpers.mhtml_images import build_icon_lookup
+from scraper_helpers.excel import prepare_workbook_for_append, append_rows_to_category_sheets
+from scraper_models.constants import HEADERS
+from scraper_detectors.platform import detect_platform_from_filename
+from scraper_detectors.country import detect_country_from_filename
+from scraper_detectors.category import detect_category_from_filename
+from scraper_pipeline.dispatcher import extract_platform_rows, build_output_rows
 
 
 DEBUG = False

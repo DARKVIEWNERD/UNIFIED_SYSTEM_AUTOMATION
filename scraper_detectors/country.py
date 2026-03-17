@@ -1,5 +1,5 @@
 # detector/country.py
-from models.constants import COUNTRIES
+from scraper_models.constants import COUNTRIES
 
 _COUNTRY_SYNONYMS = {
     "usa": "US", "u.s.": "US", "u.s": "US", "uae": "AE",

@@ -1,7 +1,7 @@
 # extractors/custom.py
 from bs4 import BeautifulSoup
-from helpers.io import bs_kwargs
-from helpers.text import looks_like_bad_publisher, clean_publisher_text, score_publisher_candidate
+from scraper_helpers.io import bs_kwargs
+from scraper_helpers.text import looks_like_bad_publisher, clean_publisher_text, score_publisher_candidate
 
 def _narrow_by_main_containers(soup, main_selectors, index):
     current = soup
@@ -16,13 +16,13 @@ def _narrow_by_main_containers(soup, main_selectors, index):
     return current, "ok"
 # pipeline/dispatcher.py
 import os
-from detector.store import detect_store
-from detector.category import classify_category_by_content
-from helpers.util import filename_tokens_lower
-from extractors.similarweb import extract_similarweb
-from extractors.appfollow import extract_appfollow
-from extractors.sensortower import extract_sensortower, extract_sensortower_via_selenium
-from extractors.custom import extract_custom_platform
+from scraper_detectors.store import detect_store
+from scraper_detectors.category import classify_category_by_content
+from scraper_helpers.util import filename_tokens_lower
+from scraper_extractors.similarweb import extract_similarweb
+from scraper_extractors.appfollow import extract_appfollow
+from scraper_extractors.sensortower import extract_sensortower, extract_sensortower_via_selenium
+from scraper_extractors.custom import extract_custom_platform
 
 def extract_platform_rows(platform_key: str, html: str, config: dict, *, max_rows=None, source_path=None):
     """
