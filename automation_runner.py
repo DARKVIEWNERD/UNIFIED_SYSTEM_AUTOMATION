@@ -508,6 +508,7 @@ def run_directory_scraping_process(params, ui_callbacks):
     from scraper_pipeline.dispatcher import extract_platform_rows, build_output_rows
     from scraper_helpers.excel import prepare_workbook_for_append, append_rows_to_category_sheets
     from scraper_helpers.console import post_trim_rows
+    from scraper_helpers.mhtml_images import build_icon_lookup
     from scraper_models.constants import HEADERS
     from config import TARGET_DIR
 
@@ -569,8 +570,19 @@ def run_directory_scraping_process(params, ui_callbacks):
                 continue
 
             with open(file_path, "rb") as f:
-                data = f.read()
-            html, err = html_from_mhtml_bytes(data)
+                raw_mhtml = f.read()
+
+            html, err = html_from_mhtml_bytes(raw_mhtml)
+            if err or not html:
+                logger.error(
+                    f"❌ [{idx}/{total}] Failed: {filename} - "
+                    f"{err or 'Failed to parse MHTML'}"
+                )
+                failed += 1
+                continue
+
+            # ✅ SAME AS callable.py
+            icon_lookup = build_icon_lookup(raw_mhtml)
 
             if err or not html:
                 logger.error(
@@ -598,9 +610,14 @@ def run_directory_scraping_process(params, ui_callbacks):
                 plat_name, rows, country_code, quarter, file_path
             )
             append_rows_to_category_sheets(
-                ws_map, final_rows, file_category,
-                input_dir=dir_path, base_url=base_url
+                ws_map,
+                final_rows,
+                file_category,
+                input_dir=dir_path,
+                base_url=base_url,
+                icon_lookup=icon_lookup,  
             )
+
 
             country_info = f" ({country_code})" if country_code else ""
             category_info = f" [{file_category}]" if file_category else ""
