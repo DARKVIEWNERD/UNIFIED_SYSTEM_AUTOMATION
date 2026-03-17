@@ -615,7 +615,7 @@ def run_directory_scraping_process(params, ui_callbacks):
                 file_category,
                 input_dir=dir_path,
                 base_url=base_url,
-                icon_lookup=icon_lookup,   # ✅ REQUIRED (matches callable.py)
+                icon_lookup=icon_lookup,  
             )
 
 
