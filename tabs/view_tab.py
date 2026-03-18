@@ -79,16 +79,16 @@ class ViewTab(Base):
         
         ttk.Button(button_container, text="✏️ Edit Selected",
                   command=self.edit_selected_config,
-                  style='Action.TButton', width=15).pack(side='left', padx=3)
+                  style='Action.TButton', width=18).pack(side='left', padx=3)
         ttk.Button(button_container, text="🔄 Toggle Status",
                   command=self.toggle_config_status,
-                  style='Action.TButton', width=15).pack(side='left', padx=3)
+                  style='Action.TButton', width=18).pack(side='left', padx=3)
         ttk.Button(button_container, text="🗑️ Delete Selected",
                   command=self.delete_configuration,
-                  style='Danger.TButton', width=15).pack(side='left', padx=3)
+                  style='Danger.TButton', width=18).pack(side='left', padx=3)
         ttk.Button(button_container, text="🔄 Refresh",
                   command=self.refresh_view,
-                  style='Action.TButton', width=10).pack(side='left', padx=3)
+                  style='Action.TButton', width=18).pack(side='left', padx=3)
                   
     def load_configs_into_tree(self):
         """Load configurations into the tree"""

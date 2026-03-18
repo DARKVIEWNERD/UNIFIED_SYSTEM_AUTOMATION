@@ -78,7 +78,7 @@ class AutomationTab(Base):
         """Build the configuration panel"""
         header_frame = ttk.Frame(parent)
         header_frame.pack(fill='x', pady=5)
-        ttk.Label(header_frame, text="🤖 AUTOMATION CONFIGURATION",
+        ttk.Label(header_frame, text="AUTOMATION CONFIGURATION",
                   style='Header.TLabel').pack()
         ttk.Label(header_frame, text="Configure and run multi-country automation",
                   style='SubHeader.TLabel').pack()
@@ -114,8 +114,8 @@ class AutomationTab(Base):
                                       style='Danger.TButton', width=10, state='disabled')
         self.stop_button.pack(side='left', padx=5)
 
-        self.scrape_button = ttk.Menubutton(button_frame, text="📂 Scrape Files",
-                                            width=15, style='Action.TButton')
+        self.scrape_button = ttk.Menubutton(button_frame, text="📂 SCRAPE FILES",
+                                            width=18, style='Action.TButton')
         self.scrape_button.pack(side='left', padx=5)
 
         scrape_menu = tk.Menu(self.scrape_button, tearoff=0)
