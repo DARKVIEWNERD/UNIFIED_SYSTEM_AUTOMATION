@@ -1,4 +1,3 @@
-# helpers/excel.py
 import os
 from openpyxl import load_workbook, Workbook
 from openpyxl.styles import PatternFill, Font
@@ -61,10 +60,15 @@ def prepare_workbook_for_append(
         if ws0.max_row <= 1 and ws0.max_column <= 1:
             wb.remove(ws0)
 
-    # Icon column width
+    # Icon column width (J)
     icon_col_letter = get_column_letter(len(headers))
     for ws in ws_map.values():
         ws.column_dimensions[icon_col_letter].width = 11
+
+    # Preview column width (K)
+    preview_col_letter = get_column_letter(len(headers) + 1)
+    for ws in ws_map.values():
+        ws.column_dimensions[preview_col_letter].width = 14
 
     return wb, ws_map
 
@@ -89,8 +93,11 @@ def append_rows_to_category_sheets(
         fill_type="solid"
     )
 
-    icon_col_idx = len(HEADERS)
+    icon_col_idx = len(HEADERS)          # J
     icon_col_letter = get_column_letter(icon_col_idx)
+
+    preview_col_idx = icon_col_idx + 1   # ✅ K
+    preview_col_letter = get_column_letter(preview_col_idx)
 
     def _is_http_url(s: str) -> bool:
         return bool(s and s.lower().startswith(("http://", "https://")))
@@ -101,7 +108,10 @@ def append_rows_to_category_sheets(
         sp_norm = os.path.abspath(source_path)
         if base_url:
             try:
-                rel = os.path.relpath(sp_norm, start=os.path.abspath(input_dir or os.getcwd()))
+                rel = os.path.relpath(
+                    sp_norm,
+                    start=os.path.abspath(input_dir or os.getcwd())
+                )
                 rel_url = "/".join(rel.split(os.sep))
                 return f"{base_url.rstrip('/')}/{rel_url}", sp_norm
             except Exception:
@@ -167,6 +177,18 @@ def append_rows_to_category_sheets(
                     pass
 
         # ------------------------------
+        # ICON PREVIEW FORMULA (COLUMN K)
+        # ------------------------------
+        try:
+            ws.cell(
+                row=i,
+                column=preview_col_idx,
+                value=f"=IMAGE({icon_col_letter}{i})"
+            )
+        except Exception:
+            pass
+
+        # ------------------------------
         # Highlight Rank == 1
         # ------------------------------
         try:
@@ -175,5 +197,5 @@ def append_rows_to_category_sheets(
             rank_int = None
 
         if rank_int == 1:
-            for col_idx in range(1, len(HEADERS) + 1):
+            for col_idx in range(1, preview_col_idx + 1):
                 ws.cell(row=i, column=col_idx).fill = yellow_fill
