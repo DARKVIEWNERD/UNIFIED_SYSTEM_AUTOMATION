@@ -209,7 +209,7 @@ def run_automation_process(ui_callbacks):
     ensure_directory_exists(TARGET_DIR)
     ensure_directory_exists(execution_folder)
 
-    country_sequence_counters = initialize_counters_from_files(execution_folder, COUNTRIES)
+    country_sequence_counters, used_slots = initialize_counters_from_files(execution_folder, COUNTRIES)
     logger.info(f"🔢 Initialized counters for {len(COUNTRIES)} countries")
 
     apptweak = None
@@ -219,7 +219,8 @@ def run_automation_process(ui_callbacks):
             execution_folder=execution_folder,
             sequence_counters=country_sequence_counters,
             existing_snapshots=existing_snapshots,
-            extract_fn=extract_and_append,   # ← filename-based detection handles everything
+            extract_fn=extract_and_append,
+            used_slots=used_slots,
         )
         logger.info("✅ AppTweakIntegration initialized")
 
@@ -263,38 +264,34 @@ def run_automation_process(ui_callbacks):
                         logger.warning("⚠ AppTweak disabled")
                     else:
                         try:
-                            seq_before = country_sequence_counters.get(country['number'], 0)
-                            success_count, total_count = apptweak.execute_apptweak_flow(
-                                country, web_platform
-                            )
-                            seq_after  = country_sequence_counters.get(country['number'], 0)
-                            files_made = seq_after - seq_before
-                            logger.info(f"      📊 AppTweak created {files_made} files")
-
-                            for _ in range(success_count):
+                            # Wire real-time callbacks — fires per file, not at the end
+                            apptweak.on_success = lambda: (
                                 all_successful.append((country['name'], web_platform['name'],
                                                        "apptweak", "apptweak_category",
-                                                       web_platform["base_url"]))
-                            for _ in range(total_count - success_count):
+                                                       web_platform["base_url"])),
+                                set_counts(len(all_successful), len(all_failed)),
+                                inc_files(),
+                            )
+                            apptweak.on_fail = lambda reason: (
                                 all_failed.append((country['name'], web_platform['name'],
                                                    "apptweak", "apptweak_category",
-                                                   web_platform["base_url"],
-                                                   "AppTweak automation failed"))
-
-                            set_counts(len(all_successful), len(all_failed))
-                            inc_files_by(files_made)
+                                                   web_platform["base_url"], reason)),
+                                set_counts(len(all_successful), len(all_failed)),
+                            )
+ 
+                            apptweak.execute_apptweak_flow(country, web_platform)
                             time.sleep(DELAYS.get("apptweak_country_delay", 5))
-
+ 
                         except Exception as e:
                             logger.error(f"❌ AppTweak failed: {str(e)[:120]}")
                             all_failed.append((country['name'], web_platform['name'],
                                                "apptweak", "apptweak", web_platform["base_url"],
                                                f"AppTweak error: {str(e)[:100]}"))
-
+ 
                     completed_pairs += 1
                     update_progress(completed_pairs / total_pairs * 100)
                     continue
-
+ 
                 # ── Universal engine ──────────────────────────────────────
                 if web_platform["type"] == "universal":
                     if not UNIVERSAL_AVAILABLE:
@@ -309,7 +306,8 @@ def run_automation_process(ui_callbacks):
                                 execution_folder=execution_folder,
                                 sequence_counters=country_sequence_counters,
                                 existing_snapshots=existing_snapshots,
-                                extract_fn=extract_and_append, 
+                                extract_fn=extract_and_append,
+                               used_slots=used_slots
                             )
                             seq_after  = country_sequence_counters.get(country['number'], 0)
                             files_made = seq_after - seq_before
@@ -409,7 +407,7 @@ def run_automation_process(ui_callbacks):
                     logger.info("      ✅ Page validated")
 
                     date_stamp      = datetime.now().strftime("%Y%m%d")
-                    sequence_number = get_next_sequence_number(country, country_sequence_counters)
+                    sequence_number = get_next_sequence_number(country, country_sequence_counters, used_slots)
                     base_filename   = create_base_filename(
                         country=country,
                         sequence=sequence_number,
@@ -504,7 +502,7 @@ def run_directory_scraping_process(params, ui_callbacks):
         ui_callbacks: dict of callables provided by AutomationTab:
                   update_progress(pct)   — set progress bar + label
                   get_stop_flag()        — returns bool
-                  increment_files()      — bump files_count by 1
+                  set_counts(s, f)       — update success/fail labels
 
     Returns:
         dict with keys: total, successful, failed, outfile, stopped
@@ -529,7 +527,7 @@ def run_directory_scraping_process(params, ui_callbacks):
 
     update_progress = ui_callbacks["update_progress"]
     is_stopped      = ui_callbacks["get_stop_flag"]
-    inc_files       = ui_callbacks["increment_files"]
+    set_counts      = ui_callbacks.get("set_counts", lambda s, f: None)
 
     files = list(iter_mhtml_files(dir_path))
     files.sort(key=lambda p: os.path.basename(p).lower())
@@ -576,6 +574,7 @@ def run_directory_scraping_process(params, ui_callbacks):
                     "No platform hint from filename"
                 )
                 failed += 1
+                set_counts(successful, failed)
                 continue
 
             with open(file_path, "rb") as f:
@@ -588,17 +587,10 @@ def run_directory_scraping_process(params, ui_callbacks):
                     f"{err or 'Failed to parse MHTML'}"
                 )
                 failed += 1
+                set_counts(successful, failed)
                 continue
 
             icon_lookup = build_icon_lookup(raw_mhtml)
-
-            if err or not html:
-                logger.error(
-                    f"❌ [{idx}/{total}] Failed: {filename} - "
-                    f"{err or 'Failed to parse MHTML'}"
-                )
-                failed += 1
-                continue
 
             plat_name, rows, reason = extract_platform_rows(
                 platform_key, html, config,
@@ -612,6 +604,7 @@ def run_directory_scraping_process(params, ui_callbacks):
                     f"0 rows from {platform_key} ({reason})"
                 )
                 failed += 1
+                set_counts(successful, failed)
                 continue
 
             final_rows = build_output_rows(
@@ -633,11 +626,12 @@ def run_directory_scraping_process(params, ui_callbacks):
                 f"from {plat_name}{country_info}{category_info}"
             )
             successful += 1
-            inc_files()
+            set_counts(successful, failed)
 
         except Exception as e:
             logger.error(f"❌ [{idx}/{total}] Failed: {filename} - {str(e)}")
             failed += 1
+            set_counts(successful, failed)
 
     try:
         wb.save(outfile)

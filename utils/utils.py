@@ -117,21 +117,34 @@ def clean_category_name(category: str) -> str:
 
     return category
 
-def get_next_sequence_number(country_data, sequence_counters):
-    """Get and increment sequence number for a country - SYNCHRONIZED ACROSS ALL PLATFORMS"""
+def get_next_sequence_number(country_data, sequence_counters, used_slots=None):
+    """
+    Get next sequence number for a country.
+    If used_slots is provided, fills gaps first before appending new ones.
+    This ensures deleted files get their slot back, no gaps left behind.
+    """
     country_number = country_data.get("number", "00")
-    
-    # Get current sequence for this country
-    if country_number in sequence_counters:
-        sequence_number = sequence_counters[country_number]+1
-    else:
-        # Initialize if not exists
-        sequence_number = 1
-
-    # Update the counter
+ 
+    if used_slots is not None:
+        taken = used_slots.get(country_number, set())
+        # Find the lowest available gap starting from 1
+        seq = 1
+        while seq in taken:
+            seq += 1
+        # Mark this slot as taken
+        taken.add(seq)
+        used_slots[country_number] = taken
+        # Keep counter in sync
+        sequence_counters[country_number] = max(
+            sequence_counters.get(country_number, 0), seq
+        )
+        return seq
+ 
+    # Fallback — original behavior (no used_slots passed)
+    sequence_number = sequence_counters.get(country_number, 0) + 1
     sequence_counters[country_number] = sequence_number
-    
     return sequence_number
+ 
 
 def print_progress(current: int, total: int, prefix: str = "", bar_length: int = 50):
     """Print a progress bar"""

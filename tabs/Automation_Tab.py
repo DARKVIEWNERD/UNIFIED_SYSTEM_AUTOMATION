@@ -256,7 +256,7 @@ class AutomationTab(Base):
         log_frame.pack(fill='both', expand=True, pady=5)
         self.log_text = tk.scrolledtext.ScrolledText(
             log_frame, wrap=tk.WORD, width=80, height=30,
-            font=UIConstants.FONTS['log'], background='black', foreground=Colors.SUCCESS
+            font=UIConstants.FONTS['log'], background='black', foreground=Colors.SUCCESS, state='disabled'
         )
         self.log_text.pack(fill='both', expand=True)
         self.app.log_manager.attach_log_widget(self.log_text)
@@ -482,9 +482,10 @@ class AutomationTab(Base):
                         self.progress_label.configure(text=f"{p:.1f}%")
                     ))
 
-                def _increment_files():
-                    self.app.root.after(0, lambda: self.files_count.config(
-                        text=str(int(self.files_count.cget("text") or 0) + 1)
+                def _set_counts(success, failed):
+                    self.app.root.after(0, lambda s=success, f=failed: (
+                        self.success_count.config(text=str(s)),
+                        self.fail_count.config(text=str(f))
                     ))
 
                 def _get_stop_flag():
@@ -493,7 +494,7 @@ class AutomationTab(Base):
 
                 ui_callbacks = {
                     "update_progress": _update_progress,
-                    "increment_files": _increment_files,
+                    "set_counts":      _set_counts, 
                     "get_stop_flag":   _get_stop_flag,
                 }
 
@@ -528,6 +529,8 @@ class AutomationTab(Base):
                     "Error", f"Scraping failed: {str(e)}"))
             finally:
                 self.app.root.after(0, self.automation_finished)
+                
+                
     # ========== Automation Methods ==========
 
     def _reset_ui_state(self):

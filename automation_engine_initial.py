@@ -515,6 +515,7 @@ def execute_universal_flow(
     existing_snapshots,
     extract_fn=None,
     ui_callbacks=None,
+    used_slots=None,
 ):
     """
     ui_callbacks (optional) — same dict passed from AutomationTab:
@@ -687,7 +688,7 @@ def execute_universal_flow(
 
             # ── Save snapshot ─────────────────────────────────────────
             sequence_number = get_next_sequence_number(
-                country_data, sequence_counters
+                country_data, sequence_counters, used_slots
             )
             base_filename = create_base_filename(
                 country=country_data,
