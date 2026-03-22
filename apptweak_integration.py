@@ -66,16 +66,7 @@ def _sleep(seconds: float) -> bool:
 
 class AppTweakIntegration:
     def __init__(self, driver, execution_folder, sequence_counters=None, existing_snapshots=None,
-                 extract_fn=None, **kwargs):
-        """
-        Initialize AppTweakIntegration.
-
-        Args:
-            extract_fn: Optional callable — signature is:
-                        extract_fn(saved_path, execution_folder)
-                        All other values (platform, country, category) are derived
-                        from the filename inside extract_and_append itself.
-        """
+                 extract_fn=None, used_slots=None, **kwargs):
         self.driver = driver
         self.execution_folder = execution_folder
         self.date_stamp = time.strftime("%Y%m%d")
@@ -84,6 +75,7 @@ class AppTweakIntegration:
         self.extract_fn = extract_fn
         self.on_success = None
         self.on_fail = None
+        self.used_slots = used_slots if used_slots is not None else {}
 
     def _country_key(self, country_data):
         return country_data.get("number", "00")
@@ -210,7 +202,7 @@ class AppTweakIntegration:
 
                 if _sleep(1): break
 
-                sequence_number = get_next_sequence_number(country_data, self.sequence_counters)
+                sequence_number = get_next_sequence_number(country_data, self.sequence_counters, self.used_slots)
 
                 if self.configure_modal(
                     platform["store_name"], country_data["name"],
