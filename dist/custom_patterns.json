@@ -1,0 +1,344 @@
+[
+  {
+    "name": "AppFollow",
+    "base_url": "https://appfollow.io",
+    "active": true,
+    "version": "1.0",
+    "description": "Latest appListing",
+    "custom_selectors": [
+      {
+        "role": "countries_button",
+        "tag": "button",
+        "type": "button",
+        "value": "//html/body/div[4]/div[1]/div/div[1]/div/button[3]",
+        "notes": "countries button",
+        "param": "country"
+      },
+      {
+        "role": "countries_input",
+        "tag": "input",
+        "type": "input",
+        "value": "//input[contains(@class, 'nCp2EqB otdBpuE')]",
+        "notes": "input countries",
+        "param": "country"
+      },
+      {
+        "role": "countries_Span",
+        "tag": "Span",
+        "type": "dropdown",
+        "value": "//span[contains(@class,'g1ycBXx')]",
+        "notes": "categories button",
+        "param": "country"
+      },
+      {
+        "role": "Categories_Span",
+        "tag": "span",
+        "type": "dropdown",
+        "value": "//span[contains(@class,'yEqU4HH')]",
+        "notes": "categories list",
+        "param": "category"
+      }
+    ],
+    "scraper_selectors": [],
+    "main_container_index": null,
+    "metadata": {
+      "created_at": "2026-02-18 09:31:16",
+      "total_selectors": 4,
+      "updated_at": "2026-03-17 20:50:09",
+      "status_updated_at": "2026-03-11 10:27:09",
+      "total_scraper_selectors": 0
+    }
+  },
+  {
+    "name": "SimilarWeb",
+    "base_url": "https://www.similarweb.com",
+    "active": true,
+    "version": "1.0",
+    "description": "list of top apps",
+    "custom_selectors": [
+      {
+        "role": "Country_select",
+        "tag": "country_select",
+        "type": "button",
+        "value": "//*[@id=\"app\"]/div/main/div/div/section[1]/div/div/div[2]/div/div[2]/div/button",
+        "notes": "for country list",
+        "param": "country"
+      },
+      {
+        "role": "Country_select",
+        "tag": "country_select",
+        "type": "input",
+        "value": "//*[@id=\"app\"]/div/main/div/div/section[1]/div/div/div[2]/div/div[2]/div/input",
+        "notes": "for country list",
+        "param": "country"
+      },
+      {
+        "role": "Category_select",
+        "tag": "category_select",
+        "type": "button",
+        "value": "//*[@id=\"app\"]/div/main/div/div/section[1]/div/div/div[2]/div/div[1]/div/button",
+        "notes": "for category list",
+        "param": "category"
+      },
+      {
+        "role": "Category_select",
+        "tag": "category_select",
+        "type": "input",
+        "value": "//*[@id=\"app\"]/div/main/div/div/section[1]/div/div/div[2]/div/div[1]/div/input",
+        "notes": "for category list",
+        "param": "category"
+      },
+      {
+        "role": "save_button",
+        "tag": "save_button",
+        "type": "button",
+        "value": "//*[@id=\"app\"]/div/main/div/div/section[1]/div/div/div[2]/button",
+        "notes": "for saving",
+        "param": "category"
+      }
+    ],
+    "scraper_selectors": [],
+    "main_container_index": null,
+    "metadata": {
+      "created_at": "2026-02-06 13:01:51",
+      "total_selectors": 5,
+      "status_updated_at": "2026-03-11 10:27:12",
+      "updated_at": "2026-03-17 20:50:20",
+      "total_scraper_selectors": 0
+    }
+  },
+  {
+    "name": "apptweak",
+    "base_url": "https://www.apptweak.com/en/free-tools/app-store-top-charts",
+    "active": true,
+    "version": "1.0",
+    "description": "list of top apps",
+    "custom_selectors": [
+      {
+        "role": "modal_button",
+        "tag": "a",
+        "type": "button",
+        "value": "//a[contains(@class, 'js-change-column')]",
+        "notes": "MODAL button"
+      },
+      {
+        "role": "platform_store_input",
+        "tag": "select",
+        "type": "select",
+        "value": "//select[contains(@class, 'stores')]",
+        "notes": "for store list",
+        "param": "platform"
+      },
+      {
+        "role": "country_input",
+        "tag": "select",
+        "type": "selectsda",
+        "value": "//select[contains(@class, 'countries')]",
+        "notes": "for country list",
+        "param": "country"
+      },
+      {
+        "role": "category_input",
+        "tag": "select",
+        "type": "select",
+        "value": "//select[contains(@class, 'categories')]",
+        "notes": "for category list",
+        "param": "category"
+      },
+      {
+        "role": "save_button",
+        "tag": "button",
+        "type": "button",
+        "value": "//button[contains(text(), 'Save filters')]",
+        "notes": "for saving",
+        "param": "category"
+      }
+    ],
+    "scraper_selectors": [],
+    "main_container_index": null,
+    "metadata": {
+      "created_at": "2026-02-06 13:01:51",
+      "total_selectors": 5,
+      "updated_at": "2026-03-20 22:26:13",
+      "status_updated_at": "2026-02-19 18:52:15",
+      "total_scraper_selectors": 0
+    }
+  },
+  {
+    "name": "sensorTower",
+    "base_url": "https://app.sensortower.com/top-charts",
+    "active": true,
+    "version": "1.0",
+    "description": "",
+    "custom_selectors": [
+      {
+        "role": "button_country",
+        "tag": "button",
+        "type": "button",
+        "value": "//*[@id=\"mainContent\"]/div[1]/div/div[2]/div/div[3]/div/div/button",
+        "notes": "select_country",
+        "param": "country"
+      },
+      {
+        "role": "li_List_country",
+        "tag": "li",
+        "type": "list",
+        "value": "//*[contains(@class, \"MuiMenuItem-root\") and contains(@class, \"BaseMenuItem-module__item\")]",
+        "notes": "list country",
+        "param": "country"
+      },
+      {
+        "role": "category_button",
+        "tag": "button",
+        "type": "button",
+        "value": "//*[@id=\"mainContent\"]/div[1]/div/div[2]/div/div[4]/div/div/button",
+        "notes": "button_category",
+        "param": "category"
+      },
+      {
+        "role": "li_List_category",
+        "tag": "li",
+        "type": "list",
+        "value": "//ul/li",
+        "notes": "list category",
+        "param": "category"
+      }
+    ],
+    "scraper_selectors": [],
+    "main_container_index": null,
+    "metadata": {
+      "created_at": "2026-02-03 09:21:29",
+      "total_selectors": 4,
+      "updated_at": "2026-03-16 16:07:07",
+      "status_updated_at": "2026-03-11 16:34:00",
+      "total_scraper_selectors": 0
+    }
+  },
+  {
+    "name": "Appfigures",
+    "base_url": "https://appfigures.com/top-apps/",
+    "active": true,
+    "version": "1.0",
+    "description": "list of top apps",
+    "custom_selectors": [
+      {
+        "role": "Country_select",
+        "tag": "country_select",
+        "type": "select",
+        "value": "//*[@id=\"app-root\"]/span/section[2]/div/div[2]/div[2]/select",
+        "notes": "for country list",
+        "param": "country"
+      },
+      {
+        "role": "Category_select",
+        "tag": "category_select",
+        "type": "select",
+        "value": "//select[contains(@class, 's-1570485343-0')]",
+        "notes": "for category list",
+        "param": "category"
+      }
+    ],
+    "scraper_selectors": [],
+    "main_container_index": null,
+    "metadata": {
+      "created_at": "2026-02-06 13:01:51",
+      "total_selectors": 2,
+      "status_updated_at": "2026-03-04 09:47:42",
+      "updated_at": "2026-03-16 16:47:03",
+      "total_scraper_selectors": 0
+    }
+  },
+  {
+    "name": "AppMagic",
+    "base_url": "https://appmagic.rocks/top-charts/apps?hl=en",
+    "active": false,
+    "version": "1.0",
+    "description": "FOR TESTING APP LISTING",
+    "custom_selectors": [
+      {
+        "role": "platform_store_button",
+        "tag": "div",
+        "type": "button",
+        "value": "//span[contains(text(),'All Stores')]",
+        "param": "platform"
+      },
+      {
+        "role": "platform_store_list",
+        "tag": "span",
+        "type": "dropdown",
+        "value": "//span[contains(@class,'group-item-name')]",
+        "param": "platform"
+      },
+      {
+        "role": "Country_button",
+        "tag": "div",
+        "type": "button",
+        "value": "//html/body/app-root/layout/div[2]/top-layout/top-apps-wrapper/top-apps/div/apps-filters/country-group-select/selector/div/div[2]",
+        "param": "country"
+      },
+      {
+        "role": "country_input",
+        "tag": "div",
+        "type": "dropdown",
+        "value": "//div[contains(@class,'btn-country g-group-item')]",
+        "param": "country"
+      },
+      {
+        "role": "Country_apply_button",
+        "tag": "button",
+        "type": "button",
+        "value": "//button[contains(text(),'Apply')]",
+        "param": "country"
+      },
+      {
+        "role": "category_button_span",
+        "tag": "span",
+        "type": "button",
+        "value": "//html/body/app-root/layout/div[2]/top-layout/top-apps-wrapper/top-apps/div/apps-filters/category-single-select/selector/div/div",
+        "param": "category"
+      },
+      {
+        "role": "category_list",
+        "tag": "div",
+        "type": "dropdown",
+        "value": "//div[contains(@class,'g-group-item']",
+        "param": "category"
+      }
+    ],
+    "scraper_selectors": [],
+    "main_container_index": null,
+    "metadata": {
+      "created_at": "2026-03-04 08:16:13",
+      "total_selectors": 7,
+      "updated_at": "2026-03-22 12:54:58",
+      "status_updated_at": "2026-03-04 09:47:37",
+      "total_scraper_selectors": 0
+    }
+  },
+  {
+    "name": "test 1",
+    "base_url": "test.com",
+    "active": false,
+    "version": "1.0",
+    "description": "",
+    "custom_selectors": [
+      {
+        "role": "test",
+        "tag": "div",
+        "type": "mic",
+        "value": "mic"
+      },
+      {
+        "role": "pogi",
+        "tag": "div",
+        "type": "pogi",
+        "value": "//*[@id=\"app\"]/div/main/div/div/section[1]/div/div/div[2]/button"
+      }
+    ],
+    "metadata": {
+      "created_at": "2026-03-10 15:25:53",
+      "total_selectors": 2,
+      "updated_at": "2026-03-11 13:35:46"
+    }
+  }
+]

@@ -305,11 +305,14 @@
         "param": "category"
       }
     ],
+    "scraper_selectors": [],
+    "main_container_index": null,
     "metadata": {
       "created_at": "2026-03-04 08:16:13",
       "total_selectors": 7,
-      "updated_at": "2026-03-05 07:30:27",
-      "status_updated_at": "2026-03-04 09:47:37"
+      "updated_at": "2026-03-22 12:52:54",
+      "status_updated_at": "2026-03-04 09:47:37",
+      "total_scraper_selectors": 0
     }
   },
   {

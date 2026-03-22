@@ -3,6 +3,19 @@
 import json
 import os
 from pathlib import Path
+import sys
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BASE DIR — must be FIRST before anything else
+# ─────────────────────────────────────────────────────────────────────────────
+
+def get_base_dir() -> Path:
+    """Works both in development and when frozen as .exe"""
+    if getattr(sys, 'frozen', False):
+        return Path(sys.executable).parent
+    return Path(__file__).parent
+
+BASE_DIR = get_base_dir()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STATIC CONFIG  (never changes at runtime)
@@ -63,7 +76,7 @@ APP_PLATFORMS = ["android", "apple"]
 # DYNAMIC CONFIG  — loaded from custom_patterns.json
 # ─────────────────────────────────────────────────────────────────────────────
 
-_JSON_PATH = Path(__file__).parent / "custom_patterns.json"
+_JSON_PATH = BASE_DIR / "custom_patterns.json"  # ← now uses BASE_DIR
 
 # Known platforms that get a specific type tag instead of "universal"
 _NAMED_TYPES = {"appfollow", "similarweb", "apptweak"}
@@ -124,7 +137,7 @@ reload_web_platforms()
 # OTHER SETTINGS
 # ─────────────────────────────────────────────────────────────────────────────
 
-TARGET_DIR = Path(__file__).parent / "AUTOMATION FILE"
+TARGET_DIR = BASE_DIR / "AUTOMATION FILE"
 
 DELAYS = {
     "page_load":             (4, 6),
@@ -137,8 +150,6 @@ DELAYS = {
     "apptweak_category_delay": 3,
     "apptweak_platform_delay": 3,
     "apptweak_country_delay":  5,
-
-
 }
 
 CHROME_OPTIONS = [
@@ -160,5 +171,4 @@ APPTWEAK = {
         "save_button":       ".js-top-charts-change-column-btn.btn",
         "edit_link":         "a.js-change-column[data-column-position='0']",
     },
-
 }
