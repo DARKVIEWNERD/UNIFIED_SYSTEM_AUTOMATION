@@ -138,11 +138,7 @@ DELAYS = {
     "apptweak_platform_delay": 3,
     "apptweak_country_delay":  5,
 
-    # General
-    "modal_wait":     2,
-    "dropdown_wait":  0.5,
-    "save_wait":      2,
-    "snapshot_wait":  1,
+
 }
 
 CHROME_OPTIONS = [
@@ -164,10 +160,5 @@ APPTWEAK = {
         "save_button":       ".js-top-charts-change-column-btn.btn",
         "edit_link":         "a.js-change-column[data-column-position='0']",
     },
-    "wait_times": {
-        "page_load":          3,
-        "modal_open":         2,
-        "after_save":         2,
-        "between_categories": 3,
-    },
+
 }

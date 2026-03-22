@@ -110,8 +110,9 @@
   {
     "name": "apptweak",
     "base_url": "https://www.apptweak.com/en/free-tools/app-store-top-charts",
-    "active": false,
+    "active": true,
     "version": "1.0",
+    "description": "list of top apps",
     "custom_selectors": [
       {
         "role": "modal_button",
@@ -153,14 +154,15 @@
         "param": "category"
       }
     ],
+    "scraper_selectors": [],
+    "main_container_index": null,
     "metadata": {
       "created_at": "2026-02-06 13:01:51",
       "total_selectors": 5,
-      "updated_at": "2026-03-09 10:17:15",
+      "updated_at": "2026-03-20 22:26:13",
       "status_updated_at": "2026-02-19 18:52:15",
-      "total_scraper_selectors": 6
-    },
-    "description": "list of top apps"
+      "total_scraper_selectors": 0
+    }
   },
   {
     "name": "sensorTower",

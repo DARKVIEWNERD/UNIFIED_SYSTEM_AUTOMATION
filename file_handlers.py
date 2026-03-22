@@ -13,46 +13,46 @@ def get_timestamped_folder(base_dir: Path) -> Path:
     timestamped_dir.mkdir(parents=True, exist_ok=True)
     return timestamped_dir
 
-def initialize_counters_from_files(folder: Path, countries: list) -> dict:
+def initialize_counters_from_files(folder: Path, countries: list) -> tuple:
     """
-    Scan existing files and find the HIGHEST sequence number for each country.
-    Returns dict with last used sequence: {country_number: last_sequence}
+    Scan existing files and track used sequence slots per country.
+    Returns (counters, used_slots) where:
+      counters   = {country_number: highest_sequence}
+      used_slots = {country_number: set of used sequence numbers}
+    Gap slots (deleted files) will be reused before appending new ones.
     """
-    counters = {}
-    
+    counters   = {}
+    used_slots = {}
+
     for file in folder.glob("*.mhtml"):
         filename = file.stem
-     #   print(f"  File: {filename}")
-        
         try:
-            # Extract first 4 digits: country_number(2) + sequence(2)
             if len(filename) >= 4 and filename[:4].isdigit():
-                country_num = filename[:2]  # "01"
-                seq_num = int(filename[2:4])  # "01" -> 1
-                
-               # print(f"    Country: {country_num}, Sequence: {seq_num}")
-                
-                # Update if this sequence is higher than what we have
-                if country_num in counters:
-                    if seq_num > counters[country_num]:
-                        counters[country_num] = seq_num
-                      
-                else:
+                country_num = filename[:2]
+                seq_num     = int(filename[2:4])
+
+                # Track used slots
+                if country_num not in used_slots:
+                    used_slots[country_num] = set()
+                used_slots[country_num].add(seq_num)
+
+                # Track highest sequence
+                if country_num not in counters or seq_num > counters[country_num]:
                     counters[country_num] = seq_num
-                 #   print(f"    ✅ New country, sequence = {seq_num}")
+
         except Exception as e:
             print(f"    ❌ Error parsing: {e}")
             continue
-    
+
     # Initialize missing countries to 0
     for country in countries:
         country_num = country['number']
         if country_num not in counters:
-            counters[country_num] = 0
+            counters[country_num]   = 0
+            used_slots[country_num] = set()
             print(f"  Country {country_num}: No files yet, starting at 0")
-       
-    
-    return counters
+
+    return counters, used_slots
 
 def save_mhtml_snapshot(driver, base_filename: str, folder_path: Path):
     """

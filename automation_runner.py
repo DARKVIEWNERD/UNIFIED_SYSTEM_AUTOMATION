@@ -270,7 +270,7 @@ def run_automation_process(ui_callbacks):
                                                        "apptweak", "apptweak_category",
                                                        web_platform["base_url"])),
                                 set_counts(len(all_successful), len(all_failed)),
-                                inc_files(),
+                                inc_files(),    
                             )
                             apptweak.on_fail = lambda reason: (
                                 all_failed.append((country['name'], web_platform['name'],
@@ -298,8 +298,22 @@ def run_automation_process(ui_callbacks):
                         logger.warning("⚠ Universal engine disabled")
                     else:
                         try:
-                            seq_before = country_sequence_counters.get(country['number'], 0)
-                            success_count, total_count = execute_universal_flow(
+                            ui_callbacks["on_success"] = lambda: (
+                                all_successful.append((country['name'], web_platform['name'],
+                                                    "universal", "universal_category",
+                                                    web_platform["base_url"])),
+                                set_counts(len(all_successful), len(all_failed)),
+                                inc_files(),
+                            )
+                            ui_callbacks["on_fail"] = lambda reason: (
+                                all_failed.append((country['name'], web_platform['name'],
+                                                "universal", "universal_category",
+                                                web_platform["base_url"], reason)),
+                                set_counts(len(all_successful), len(all_failed)),
+                            )
+                            
+                            update_status(f"Running: {country['name']} / {web_platform['name']}")
+                            execute_universal_flow(
                                 driver=driver,
                                 country_data=country,
                                 platform_config=web_platform,
@@ -307,36 +321,20 @@ def run_automation_process(ui_callbacks):
                                 sequence_counters=country_sequence_counters,
                                 existing_snapshots=existing_snapshots,
                                 extract_fn=extract_and_append,
-                               used_slots=used_slots
+                                ui_callbacks=ui_callbacks,
+                                used_slots=used_slots,
                             )
-                            seq_after  = country_sequence_counters.get(country['number'], 0)
-                            files_made = seq_after - seq_before
-                            logger.info(f"      📊 Universal created {files_made} files")
-
-                            for _ in range(success_count):
-                                all_successful.append((country['name'], web_platform['name'],
-                                                       "universal", "universal_category",
-                                                       web_platform["base_url"]))
-                            for _ in range(total_count - success_count):
-                                all_failed.append((country['name'], web_platform['name'],
-                                                   "universal", "universal_category",
-                                                   web_platform["base_url"],
-                                                   "Universal automation failed"))
-
-                            set_counts(len(all_successful), len(all_failed))
-                            inc_files_by(files_made)
 
                         except Exception as e:
                             logger.error(f"❌ Universal failed: {str(e)[:120]}")
                             all_failed.append((country['name'], web_platform['name'],
-                                               "universal", "universal_category",
-                                               web_platform["base_url"],
-                                               f"Universal error: {str(e)[:100]}"))
+                                            "universal", "universal_category",
+                                            web_platform["base_url"],
+                                            f"Universal error: {str(e)[:100]}"))
 
                     completed_pairs += 1
                     update_progress(completed_pairs / total_pairs * 100)
                     continue
-
                 # ── Normal URL processing ─────────────────────────────────
                 urls = []
                 for app_platform in APP_PLATFORMS:

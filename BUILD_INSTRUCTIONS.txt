@@ -1,0 +1,166 @@
+================================================================
+  BUILD INSTRUCTIONS — AutomationApp.exe
+  How to turn your Python project into a standalone .exe
+================================================================
+
+WHAT THESE FILES DO
+-------------------
+  BUILD.bat            → Double-click to auto-install everything and build
+  automation_app.spec  → PyInstaller configuration (bundling rules)
+
+No end user needs Python, VS Code, or any library installed.
+The .exe runs on any Windows 10/11 machine by itself.
+
+
+================================================================
+  PREREQUISITES (only for YOU, the developer — one-time setup)
+================================================================
+
+1. Python 3.9 or later
+   - Download: https://www.python.org/downloads/
+   - During install: CHECK "Add Python to PATH"  ← very important
+
+2. Internet connection (to download packages the first time)
+
+That's it. BUILD.bat handles everything else automatically.
+
+
+================================================================
+  YOUR PROJECT FOLDER STRUCTURE
+================================================================
+
+Make sure your project looks like this before building:
+
+  MyProject\
+  │
+  ├── main2.py                ← your main entry point
+  ├── requirements.txt        ← your dependencies
+  ├── BUILD.bat               ← build script  (copy here)
+  ├── automation_app.spec     ← PyInstaller spec (copy here)
+  │
+  ├── managers\
+  │   ├── __init__.py
+  │   ├── config_manager.py
+  │   └── log_manager.py
+  │
+  ├── tabs\
+  │   ├── __init__.py
+  │   ├── Automation_Tab.py
+  │   ├── config_tab.py
+  │   └── view_tab.py
+  │
+  ├── constants\
+  │   ├── __init__.py
+  │   └── ui.py
+  │
+  └── utils\
+      ├── __init__.py
+      └── file_watcher.py
+
+IMPORTANT: Each folder must have an __init__.py file (even if empty).
+           If any folder is missing __init__.py, create a blank one.
+
+
+================================================================
+  HOW TO BUILD
+================================================================
+
+Step 1 — Copy BUILD.bat and automation_app.spec into your
+          project root folder (same level as main2.py).
+
+Step 2 — Double-click BUILD.bat
+          (or right-click → Run as Administrator if needed)
+
+Step 3 — Wait 1–3 minutes. When done, a window opens showing
+          the dist\ folder containing AutomationApp.exe
+
+Step 4 — Test it: double-click dist\AutomationApp.exe
+
+
+================================================================
+  SHARING THE EXE
+================================================================
+
+You only need to give the end user ONE file:
+
+  dist\AutomationApp.exe
+
+They do NOT need:
+  ✗ Python
+  ✗ VS Code
+  ✗ pip install anything
+  ✗ Any .py files
+
+Just the .exe. That's it.
+
+
+================================================================
+  OPTIONAL CUSTOMIZATIONS (edit automation_app.spec)
+================================================================
+
+Change the .exe name:
+  name='AutomationApp'   →   name='YourAppName'
+
+Add an icon (.ico file):
+  Uncomment:  icon='assets/icon.ico'
+  Replace with the path to your .ico file.
+
+Include extra data files (e.g., config.json, images):
+  Add to the datas list:
+    datas=[('config.json', '.'), ('assets', 'assets')]
+
+Remove console window (already set for GUI apps):
+  console=False   ← already configured correctly
+
+
+================================================================
+  TROUBLESHOOTING
+================================================================
+
+Problem: "Python is not recognized"
+Fix:     Reinstall Python and check "Add Python to PATH"
+
+Problem: "ModuleNotFoundError" when running the .exe
+Fix:     Add the missing module to hidden_imports in
+         automation_app.spec, then rebuild.
+
+Problem: "Failed to execute script main2"
+Fix:     Run with console=True temporarily to see the error,
+         then fix it and set back to False.
+
+Problem: App works in VS Code but not in .exe
+Fix:     Check that all relative file paths in your code use:
+           import os, sys
+           BASE_DIR = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+         Then build paths like:  os.path.join(BASE_DIR, 'config.json')
+
+Problem: Chrome/WebDriver not found
+Fix:     webdriver_manager downloads ChromeDriver at runtime.
+         The end user's machine needs Chrome installed.
+         (ChromeDriver itself is auto-downloaded on first run)
+
+Problem: Antivirus flags the .exe
+Fix:     This is a false positive common with PyInstaller.
+         Add an exclusion in Windows Defender for the .exe,
+         or sign the binary with a code-signing certificate.
+
+Problem: EXE is very large (100MB+)
+Fix:     Install UPX from https://upx.github.io/ and add to PATH.
+         The spec already has upx=True configured.
+
+
+================================================================
+  CHROME/SELENIUM NOTE FOR END USERS
+================================================================
+
+Since your app uses Selenium + Chrome:
+
+- End users MUST have Google Chrome installed.
+- ChromeDriver will be downloaded automatically on first run
+  (requires internet on first launch only).
+- If the user is offline on first run, pre-bundle ChromeDriver:
+  Download matching version from https://chromedriver.chromium.org
+  and add it to your datas in the spec file.
+
+
+================================================================
