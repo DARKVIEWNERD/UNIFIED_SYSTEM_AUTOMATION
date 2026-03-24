@@ -156,45 +156,38 @@ class ConfigManager:
             return False
     
     def extract_selectors(self):
-        """Extract all unique selector roles and values from existing configs"""
-        
         roles = set()
         selectors = set()
         tags = set(self.selectors_pool.get("tags", []))
 
+        # Process custom configurations (from custom_patterns.json)
         for config in self.configs:
             if hasattr(config, "custom_selectors") and config.custom_selectors:
                 for s in config.custom_selectors:
                     role = getattr(s, "role", None)
                     value = getattr(s, "value", None)
                     tag = getattr(s, "tag", None)
+                    if role: roles.add(role)
+                    if value: selectors.add(value)
+                    if tag: tags.add(tag)
 
-                    if role:
-                        roles.add(role)
-                    if value:
-                        selectors.add(value)
-                    if tag:
-                        tags.add(tag)
-
+        # Process scrape configurations (from config.json)
         scrape_configs = self.load_scrape_configs()
         for profile_key, profile_data in scrape_configs.items():
-            scraper_selectors = profile_data.get('custom_Scraper_selectors', [])
+            # ← FIXED: was 'custom_Scraper_selectors' (wrong capital S)
+            scraper_selectors = profile_data.get('custom_scraper_selectors', [])
             for s in scraper_selectors:
                 role = s.get('role')
                 value = s.get('value')
                 tag = s.get('tag')
-                
-                if role:
-                    roles.add(role)
-                if value:
-                    selectors.add(value)
-                if tag:
-                    tags.add(tag)
-        
+                if role: roles.add(role)
+                if value: selectors.add(value)
+                if tag: tags.add(tag)
+
         self.selectors_pool['roles'] = sorted(list(roles))
         self.selectors_pool['selectors'] = sorted(list(selectors))
         self.selectors_pool['tags'] = sorted(list(tags))
-                        
+                            
     def get_config_names(self) -> List[str]:
         """Get list of configuration names"""
         return [c.name for c in self.configs]

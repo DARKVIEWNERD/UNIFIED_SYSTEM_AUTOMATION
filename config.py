@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 
 # ─────────────────────────────────────────────────────────────────────────────
-# BASE DIR — must be FIRST before anything else
+# BASE DIR 
 # ─────────────────────────────────────────────────────────────────────────────
 
 def get_base_dir() -> Path:
@@ -18,7 +18,7 @@ def get_base_dir() -> Path:
 BASE_DIR = get_base_dir()
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STATIC CONFIG  (never changes at runtime)
+# STATIC CONFIG 
 # ─────────────────────────────────────────────────────────────────────────────
 
 COUNTRIES = [
@@ -76,9 +76,9 @@ APP_PLATFORMS = ["android", "apple"]
 # DYNAMIC CONFIG  — loaded from custom_patterns.json
 # ─────────────────────────────────────────────────────────────────────────────
 
-_JSON_PATH = BASE_DIR / "custom_patterns.json"  # ← now uses BASE_DIR
+_JSON_PATH = BASE_DIR / "custom_patterns.json"  
 
-# Known platforms that get a specific type tag instead of "universal"
+
 _NAMED_TYPES = {"appfollow", "similarweb", "apptweak"}
 
 
@@ -86,9 +86,6 @@ def reload_web_platforms() -> list:
     """
     Read custom_patterns.json from disk RIGHT NOW and return the active
     platform list.
-
-    - Called once at module import (populates WEB_PLATFORMS for the first time)
-    - Called again at the start of every execute_process() run so any edits
       made to the JSON between runs — or while the GUI is open — are picked up
       immediately without restarting the application.
 
