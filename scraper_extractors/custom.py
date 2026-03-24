@@ -14,7 +14,59 @@ def _narrow_by_main_containers(soup, main_selectors, index):
             return None, f"Main container index {index} out of range ({len(nodes)} found)"
         current = nodes[index]
     return current, "ok"
+def extract_custom_legacy(html: str, platform_cfg: dict, max_rows=None):
+    """
+    Legacy custom extractor (from scraper_tool.py logic).
+    Looser DOM assumptions, global searching.
+    Returns (rows, reason)
+    """
+    try:
+        soup = BeautifulSoup(html, "html.parser")
+        selectors = platform_cfg.get("custom_scraper_selectors", [])
+        if not selectors:
+            return [], "No custom_scraper_selectors (legacy)"
 
+        # very loose implementation:
+        rows = []
+
+        # find row-like nodes (or fallback to body)
+        row_selectors = [s for s in selectors if s.get("role") == "Row Container"]
+        if row_selectors:
+            sel = row_selectors[0]
+            row_nodes = soup.find_all(sel.get("tag", "div"))
+        else:
+            row_nodes = soup.find_all("div")
+
+        limit = max_rows or 10
+
+        for row in row_nodes[:limit]:
+            app_name = ""
+            publisher = ""
+            app_link = ""
+
+            for s in selectors:
+                kwargs = bs_kwargs(s.get("type"), s.get("value"))
+                tag = row.find(s.get("tag"), **kwargs)
+                if not tag:
+                    continue
+
+                role = s.get("role")
+                if role == "App Name":
+                    app_name = tag.get_text(strip=True)
+                elif role == "Publisher":
+                    publisher = tag.get_text(strip=True)
+                elif role == "App Link":
+                    app_link = tag.get("href", "") or tag.get_text(strip=True)
+
+            if app_name or publisher or app_link:
+                rows.append([publisher, app_name, app_link])
+
+        if rows:
+            return rows, "ok-legacy"
+        return [], "No rows (legacy)"
+
+    except Exception as e:
+        return [], f"Legacy extractor error: {e}"
 def extract_custom_platform(html, platform_cfg, max_rows=None):
     selectors = platform_cfg.get("custom_scraper_selectors") if platform_cfg else None
     if not selectors:
@@ -130,3 +182,4 @@ def extract_custom_platform(html, platform_cfg, max_rows=None):
             return rows, "ok"
 
     return [], "No data rows found with provided selectors"
+    
