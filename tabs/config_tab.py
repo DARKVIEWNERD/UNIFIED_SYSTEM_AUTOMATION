@@ -245,11 +245,12 @@ class ConfigTab(Base):
         # Row 1: Role + Tag
         ttk.Label(selector_frame, text="Role:",
                   font=('Arial', 9)).grid(row=1, column=0, sticky='w', padx=3, pady=3)
-        # ✅ BUG FIX: Do NOT reassign role_var / tag_var / selector_var / notes_var here.
-        # They are already created in __init__. Re-creating them orphans the old references.
+
+
         role_combo = ttk.Combobox(selector_frame, textvariable=self.role_var)
         role_combo['values'] = self.app.config_manager.selectors_pool['roles']
         role_combo.grid(row=1, column=1, sticky='ew', padx=3, pady=3)
+        self._role_combo = role_combo
         
         ttk.Label(selector_frame, text="HTML Tag:",
                   font=('Arial', 9)).grid(row=1, column=2, sticky='w', padx=8, pady=3)
@@ -422,6 +423,27 @@ class ConfigTab(Base):
             self.main_container_index = None
             self.ConIndex_var.set('')
             messagebox.showwarning("Invalid Input", "Please enter a single valid integer")
+    
+    def _get_scrape_roles(self) -> list:
+        """Get roles only from config.json scraper selectors"""
+        return [
+        "Main Container",
+        "Row Container",
+        "App Name",
+        "Publisher",
+        "App Link",
+    ]
+
+    def _get_custom_roles(self) -> list:
+        """Get roles only from custom_patterns.json custom selectors"""
+        roles = set()
+        for config in self.app.config_manager.configs:
+            if hasattr(config, 'custom_selectors') and config.custom_selectors:
+                for s in config.custom_selectors:
+                    role = getattr(s, 'role', None)
+                    if role:
+                        roles.add(role)
+        return sorted(list(roles))
             
     def toggle_selector_view(self):
         """Toggle between custom and scrape selector views"""
@@ -430,7 +452,10 @@ class ConfigTab(Base):
             self.toggle_view_button.config(text="Switch to Custom Selectors")
             self.view_badge.config(text="Viewing: Scrape Selectors", foreground='#e67e22')
             self.add_button.config(text="➕ Add to Scrape")
-            
+
+            # ← Show only SCRAPE roles in dropdown
+            scrape_roles = self._get_scrape_roles()
+            self._role_combo.config(values=scrape_roles)
             # Refresh profile dropdown
             existing_profiles = list(self.load_scrape_configs().keys())
             self._profile_combo['values'] = existing_profiles
@@ -444,6 +469,10 @@ class ConfigTab(Base):
             self.toggle_view_button.config(text="Switch to Scrape Selectors")
             self.view_badge.config(text="Viewing: Custom Selectors", foreground='#27ae60')
             self.add_button.config(text="➕ Add to Custom")
+
+                    # ← Show only CUSTOM roles in dropdown
+            custom_roles = self._get_custom_roles()
+            self._role_combo.config(values=custom_roles)
             
         self._refresh_fields_visibility()
         self.editing_index = -1
