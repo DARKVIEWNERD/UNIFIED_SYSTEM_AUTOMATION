@@ -37,7 +37,7 @@ Before you begin, ensure you have the following installed on your system:
 If you have Git installed:
 ```powershell
 git clone <repository-url>
-cd WEB_AUTOMATION
+cd WEB_SCRAPE_AUTOMATION
 ```
 
 Or download the project folder manually and navigate to it.
