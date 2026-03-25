@@ -323,22 +323,41 @@
     "description": "",
     "custom_selectors": [
       {
-        "role": "test",
+        "role": "Country_button",
         "tag": "div",
-        "type": "mic",
-        "value": "mic"
-      },
-      {
-        "role": "pogi",
-        "tag": "div",
-        "type": "pogi",
+        "type": "button",
         "value": "//*[@id=\"app\"]/div/main/div/div/section[1]/div/div/div[2]/button"
       }
     ],
+    "scraper_selectors": [],
+    "main_container_index": null,
     "metadata": {
       "created_at": "2026-03-10 15:25:53",
-      "total_selectors": 2,
-      "updated_at": "2026-03-11 13:35:46"
+      "total_selectors": 1,
+      "updated_at": "2026-03-25 12:48:27",
+      "total_scraper_selectors": 0
+    }
+  },
+  {
+    "name": "test1",
+    "base_url": "test.com",
+    "active": true,
+    "version": "1.0",
+    "description": "",
+    "custom_selectors": [
+      {
+        "role": "Country_button",
+        "tag": "div",
+        "type": "button",
+        "value": "//*[@id=\"app\"]/div/main/div/div/section[1]/div/div/div[2]/button"
+      }
+    ],
+    "scraper_selectors": [],
+    "main_container_index": null,
+    "metadata": {
+      "created_at": "2026-03-25 13:12:03",
+      "total_selectors": 1,
+      "total_scraper_selectors": 0
     }
   }
 ]
