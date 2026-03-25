@@ -194,40 +194,46 @@
     ],
     "main_container_index": 0
   },
-  "AppMagic": {
-    "custom_scraper_selectors": [
-      {
-        "role": "Main Container",
-        "tag": "div",
-        "type": "class",
-        "value": "col ng-star-inserted"
-      },
-      {
-        "role": "Row Container",
-        "tag": "top-apps-item",
-        "type": "class",
-        "value": "g-item no-radius-mob-ls overflow-hidden ng-star-inserted"
-      },
-      {
-        "role": "App Link",
-        "tag": "a",
-        "type": "class",
-        "value": "g-app-name g-link text-overflow"
-      },
-      {
-        "role": "App Name",
-        "tag": "a",
-        "type": "class",
-        "value": "g-app-name g-link text-overflow"
-      },
-      {
-        "role": "Publisher",
-        "tag": "a",
-        "type": "class",
-        "value": "g-app-publisher-name pub-name g-link text-overflow"
-      }
-    ],
-    "main_container_index": 0
-  }
+  "appmagic": {
+      "custom_scraper_selectors": [
+          {
+              "role": "Main Container",
+              "tag": "div",
+              "type": "class",
+              "value": "rows-wrap wrap-3-cols ng-star-inserted"
+          },
+          {
+              "role": "Main Container",
+              "tag": "div",
+              "type": "class",
+              "value": "col ng-star-inserted"
+          },
+          {
+              "role": "Row Container",
+              "tag": "div",
+              "type": "class",
+              "value": "d-flex width-100 text-overflow app-description ng-star-inserted"
+          },
+          {
+              "role": "App Name",
+              "tag": "a",
+              "type": "class",
+              "value": "g-app-name g-link text-overflow"
+          },
+          {
+              "role": "Publisher",
+              "tag": "a",
+              "type": "class",
+              "value": "g-app-publisher-name pub-name g-link text-overflow"
+          },
+          {
+              "role": "App Link",
+              "tag": "a",
+              "type": "class",
+              "value": "g-app-name g-link text-overflow"
+          }
+      ],
+      "main_container_index": 0
+    }
 
 }
