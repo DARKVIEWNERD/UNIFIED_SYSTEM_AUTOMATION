@@ -211,7 +211,7 @@ class ConfigTab(Base):
     def build_container_index_section(self, parent):
         """Build main container index section"""
         self.index_frame = ttk.LabelFrame(parent,
-                                        text="🗂 Main Container Index  (comma-separated, e.g. 0, 1, 2)",
+                                        text="🗂 Main Container Index  ( e.g. 0, 1, 2)",
                                         padding=10)
         self.index_frame.pack(fill='x', pady=3)
         self.index_frame.columnconfigure(1, weight=1)
