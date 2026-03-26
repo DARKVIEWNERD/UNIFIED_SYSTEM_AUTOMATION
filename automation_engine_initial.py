@@ -331,7 +331,12 @@ def handle_list(driver, by, selector, value, platform_name=""):
     for el in elements:
         try:
             text = el.text.strip().lower()
-            if text == value.lower() or any(alias in text for alias in aliases):
+            
+            # Skip empty or placeholder elements
+            if not text or len(text) > 50:          # ← ADD THIS
+                continue
+                
+            if text == value.lower() or any(alias == text for alias in aliases):  # ← exact match only
                 driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
                 time.sleep(0.5)
                 click(driver, el, platform_name=platform_name)
@@ -363,10 +368,11 @@ def execute_step(driver, step, country=None, category=None, platform=None,
     selector     = step.get("selector") or step.get("value")
     element_type = step.get("type", "").lower()
     param_type   = step.get("param")
+    is_repeat    = step.get("repeat", False) 
 
     # Derive is_category_step from param_type if caller didn't specify
     if not is_category_step:
-        is_category_step = (param_type == "category")
+        is_category_step = (param_type == "category"or is_repeat)
 
     if mode == "setup" and param_type == "category":
         return True
@@ -377,7 +383,7 @@ def execute_step(driver, step, country=None, category=None, platform=None,
         return False
 
     param_map   = {"country": country, "category": category, "platform": platform}
-    input_value = param_map.get(param_type)
+    input_value = None if is_repeat else param_map.get(param_type) 
     by, normalized = resolve_selector(selector)
 
     p_name  = (platform_name or "").strip().lower()
@@ -647,7 +653,7 @@ def execute_universal_flow(
 
             category_steps = [
                 s for s in platform_config.get("custom_selectors", [])
-                if s.get("param") == "category"
+                if s.get("param") == "category" or s.get("repeat")==True
             ]
             results = []
             for step in category_steps:

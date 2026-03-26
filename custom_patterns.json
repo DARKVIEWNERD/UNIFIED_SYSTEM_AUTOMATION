@@ -44,7 +44,7 @@
     "metadata": {
       "created_at": "2026-02-18 09:31:16",
       "total_selectors": 4,
-      "updated_at": "2026-03-17 20:50:09",
+      "updated_at": "2026-03-26 10:50:09",
       "status_updated_at": "2026-03-11 10:27:09",
       "total_scraper_selectors": 0
     }
@@ -52,7 +52,7 @@
   {
     "name": "SimilarWeb",
     "base_url": "https://www.similarweb.com",
-    "active": true,
+    "active": false,
     "version": "1.0",
     "description": "list of top apps",
     "custom_selectors": [
@@ -103,28 +103,28 @@
       "created_at": "2026-02-06 13:01:51",
       "total_selectors": 5,
       "status_updated_at": "2026-03-11 10:27:12",
-      "updated_at": "2026-03-17 20:50:20",
+      "updated_at": "2026-03-26 09:33:40",
       "total_scraper_selectors": 0
     }
   },
   {
     "name": "apptweak",
     "base_url": "https://www.apptweak.com/en/free-tools/app-store-top-charts",
-    "active": true,
+    "active": false,
     "version": "1.0",
     "description": "list of top apps",
     "custom_selectors": [
       {
         "role": "modal_button",
         "tag": "a",
-        "type": "button",
+        "type": "a",
         "value": "//a[contains(@class, 'js-change-column')]",
         "notes": "MODAL button"
       },
       {
         "role": "platform_store_input",
         "tag": "select",
-        "type": "select",
+        "type": "dropdown",
         "value": "//select[contains(@class, 'stores')]",
         "notes": "for store list",
         "param": "platform"
@@ -132,7 +132,7 @@
       {
         "role": "country_input",
         "tag": "select",
-        "type": "selectsda",
+        "type": "select",
         "value": "//select[contains(@class, 'countries')]",
         "notes": "for country list",
         "param": "country"
@@ -150,8 +150,7 @@
         "tag": "button",
         "type": "button",
         "value": "//button[contains(text(), 'Save filters')]",
-        "notes": "for saving",
-        "param": "category"
+        "notes": "for saving"
       }
     ],
     "scraper_selectors": [],
@@ -159,7 +158,7 @@
     "metadata": {
       "created_at": "2026-02-06 13:01:51",
       "total_selectors": 5,
-      "updated_at": "2026-03-20 22:26:13",
+      "updated_at": "2026-03-26 10:46:22",
       "status_updated_at": "2026-02-19 18:52:15",
       "total_scraper_selectors": 0
     }
@@ -167,7 +166,7 @@
   {
     "name": "sensorTower",
     "base_url": "https://app.sensortower.com/top-charts",
-    "active": true,
+    "active": false,
     "version": "1.0",
     "description": "",
     "custom_selectors": [
@@ -209,7 +208,7 @@
     "metadata": {
       "created_at": "2026-02-03 09:21:29",
       "total_selectors": 4,
-      "updated_at": "2026-03-16 16:07:07",
+      "updated_at": "2026-03-26 10:50:05",
       "status_updated_at": "2026-03-11 16:34:00",
       "total_scraper_selectors": 0
     }
@@ -217,7 +216,7 @@
   {
     "name": "Appfigures",
     "base_url": "https://appfigures.com/top-apps/",
-    "active": true,
+    "active": false,
     "version": "1.0",
     "description": "list of top apps",
     "custom_selectors": [
@@ -244,7 +243,7 @@
       "created_at": "2026-02-06 13:01:51",
       "total_selectors": 2,
       "status_updated_at": "2026-03-04 09:47:42",
-      "updated_at": "2026-03-16 16:47:03",
+      "updated_at": "2026-03-26 09:33:45",
       "total_scraper_selectors": 0
     }
   },
