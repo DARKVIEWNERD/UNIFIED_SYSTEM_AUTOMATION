@@ -14,4 +14,4 @@ apps = scrape_app_name_publisher_link(
 )
 
 for app in apps:
-    print(app["app_name"], app["publisher"], app["app_link"])
+    print(app)
