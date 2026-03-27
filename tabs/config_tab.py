@@ -457,17 +457,13 @@ class ConfigTab(Base):
             self.view_badge.config(text="Viewing: Scrape Selectors", foreground='#e67e22')
             self.add_button.config(text="➕ Add to Scrape")
 
-            # ← Show only SCRAPE roles in dropdown
             scrape_roles = self._get_scrape_roles()
             self._role_combo.config(values=scrape_roles)
-            # ADD THESE:
             self._type_combo['values'] = SelectorTypes.get_display_names(mode='scrape')
             self.type_var.set('')
-            # Refresh profile dropdown
             existing_profiles = list(self.load_scrape_configs().keys())
             self._profile_combo['values'] = existing_profiles
-            
-            # Load if profile selected
+
             selected_key = self.scrape_profile_var.get().strip()
             if selected_key:
                 self._load_scrape_profile(selected_key)
@@ -477,18 +473,17 @@ class ConfigTab(Base):
             self.view_badge.config(text="Viewing: Custom Selectors", foreground='#27ae60')
             self.add_button.config(text="➕ Add to Custom")
 
-            # ← Show only CUSTOM roles in dropdown
             custom_roles = self._get_custom_roles()
             self._role_combo.config(values=custom_roles)
-            # ADD THESE:
             self._type_combo['values'] = SelectorTypes.get_display_names(mode='custom')
             self.type_var.set('')
-                
-            self._refresh_fields_visibility()
-            self.editing_index = -1
-            self.clear_selector_inputs()
-            self.update_selector_list()
-        
+
+        # THESE NOW RUN FOR BOTH BRANCHES
+        self._refresh_fields_visibility()
+        self.editing_index = -1
+        self.clear_selector_inputs()
+        self.update_selector_list()
+            
     def _refresh_fields_visibility(self):
         """Show/hide fields based on view_mode"""
         custom_widgets = [
