@@ -115,8 +115,10 @@ class LogManager:
             while True:
                 record = self.log_queue.get_nowait()
                 tag = self.process_log_entry(record)
+                self.log_text.configure(state='normal')
                 self.log_text.insert(END, record + '\n', tag)
                 self.log_text.see(END)
+                self.log_text.configure(state='disabled')
                 updated = True
         except queue.Empty:
             pass
@@ -125,8 +127,10 @@ class LogManager:
         try:
             while True:
                 record = self.stdout_queue.get_nowait()
+                self.log_text.config(state='normal') 
                 self.log_text.insert(END, record + '\n', 'INFO')
                 self.log_text.see(END)
+                self.log_text.config(state='disabled')
                 updated = True
         except queue.Empty:
             pass
@@ -136,7 +140,9 @@ class LogManager:
     def clear_logs(self):
         """Clear all logs and reset stats"""
         if self.log_text:
-            self.log_text.delete(1.0, END)
+                self.log_text.config(state='normal')      # ← unlock
+                self.log_text.delete(1.0, END)
+                self.log_text.config(state='disabled')    # ← lock again
         self.stats = {'success': 0, 'fail': 0, 'files': 0, 'entries': 0}
         
     def get_log_content(self) -> str:

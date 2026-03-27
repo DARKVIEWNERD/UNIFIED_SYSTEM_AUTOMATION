@@ -3,7 +3,7 @@
 
 class UIConstants:
     """Window and UI configuration"""
-    WINDOW_TITLE = "🤖 Multi-Platform Automation Controller"
+    WINDOW_TITLE = "Multi-Platform Automation Controller"
     WINDOW_SIZE = "1100x740"
     WINDOW_MIN_SIZE = (1000, 600)
     

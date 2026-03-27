@@ -316,19 +316,19 @@ class ConfigTab(Base):
                                      style='Action.TButton', width=16)
         self.add_button.pack(side='left', padx=3)
         
-        ttk.Button(action_row, text="🗑️ Remove Selected", command=self.remove_selector,
-                   style='Danger.TButton', width=16).pack(side='left', padx=3)
+        ttk.Button(action_row, text="🗑️ Delete ", command=self.remove_selector,
+                   style='Danger.TButton', width=16).pack(side='left')
         
-        ttk.Button(action_row, text="👁️ Preview Selected", command=self.preview_selector,
-                   style='Action.TButton', width=16).pack(side='left', padx=3)
+        ttk.Button(action_row, text="👁️ View ", command=self.preview_selector,
+                   style='Action.TButton', width=16).pack(side='left')
         
         ttk.Button(action_row, text="✏️ Clear Fields", command=self.clear_selector_inputs,
-                   style='Action.TButton', width=12).pack(side='left', padx=3)
+                   style='Action.TButton', width=16).pack(side='left')
         
     def build_selector_tree(self, parent):
         """Build selector treeview"""
         tree_container = ttk.Frame(parent)
-        tree_container.grid(row=5, column=0, columnspan=4, sticky='nsew', pady=5)
+        tree_container.grid(row=5, column=0, columnspan=4, sticky='nsew')
         tree_container.columnconfigure(0, weight=1)
         tree_container.rowconfigure(0, weight=1)
         

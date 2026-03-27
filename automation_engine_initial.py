@@ -515,6 +515,7 @@ def execute_universal_flow(
     existing_snapshots,
     extract_fn=None,
     ui_callbacks=None,
+    used_slots=None,
 ):
     """
     ui_callbacks (optional) — same dict passed from AutomationTab:
@@ -593,12 +594,6 @@ def execute_universal_flow(
             f"{len(missing_categories)} / {len(categories)}"
         )
 
-
-        total_missing_this_store = len(missing_categories)
-        _update_stat(
-            f"{platform_name} | {country_name} | {store.upper()} "
-            f"(0/{total_missing_this_store})"
-        )
         # ── Initialize page ───────────────────────────────────────────────
         safe_initialize_page(driver, base_url, platform_name=platform_name)
 
@@ -648,15 +643,6 @@ def execute_universal_flow(
             logger.info(
                 f"      🔄 [{cat_idx}/{len(missing_categories)}] Category: {category}"
             )
-
-            # ── Progress bar + status label update ──────────────────────
-            _cat_pct = (cat_idx / total_missing_this_store) * 100
-            _update_prog(_cat_pct)
-            _update_stat(
-                f"{platform_name} | {country_name} | {store.upper()} "
-                f"({cat_idx}/{total_missing_this_store}): {category}"
-            )
-
             # ── Run category steps then save ─────────────────────────────
 
             category_steps = [
@@ -687,7 +673,7 @@ def execute_universal_flow(
 
             # ── Save snapshot ─────────────────────────────────────────
             sequence_number = get_next_sequence_number(
-                country_data, sequence_counters
+                country_data, sequence_counters, used_slots
             )
             base_filename = create_base_filename(
                 country=country_data,

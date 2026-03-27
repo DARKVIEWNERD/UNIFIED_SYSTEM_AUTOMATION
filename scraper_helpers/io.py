@@ -4,19 +4,17 @@ import sys
 import json
 import email
 import re
+from pathlib import Path  # ← FIXED: from pathlib import Path
 
 def load_config():
-    """
-    Load config.json from frozen dir or source dir.
-    """
-    base_path = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(__file__)
-    cfg_path = os.path.join(os.path.dirname(base_path), "config.json")  # config at project root
-    if not os.path.exists(cfg_path):
-        # fallback: same dir as this module
-        cfg_path = os.path.join(base_path, "config.json")
+    if getattr(sys, 'frozen', False):
+        base_path = Path(sys.executable).parent
+    else:
+        base_path = Path(__file__).parent.parent
+    cfg_path = base_path / "config.json"
     with open(cfg_path, "r", encoding="utf-8") as f:
         return json.load(f)
-
+    
 def html_from_mhtml_bytes(mhtml_bytes):
     try:
         msg = email.message_from_bytes(mhtml_bytes)

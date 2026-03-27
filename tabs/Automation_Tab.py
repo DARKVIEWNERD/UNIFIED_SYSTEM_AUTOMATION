@@ -78,7 +78,7 @@ class AutomationTab(Base):
         """Build the configuration panel"""
         header_frame = ttk.Frame(parent)
         header_frame.pack(fill='x', pady=5)
-        ttk.Label(header_frame, text="🤖 AUTOMATION CONFIGURATION",
+        ttk.Label(header_frame, text="AUTOMATION CONFIGURATION",
                   style='Header.TLabel').pack()
         ttk.Label(header_frame, text="Configure and run multi-country automation",
                   style='SubHeader.TLabel').pack()
@@ -114,8 +114,8 @@ class AutomationTab(Base):
                                       style='Danger.TButton', width=10, state='disabled')
         self.stop_button.pack(side='left', padx=5)
 
-        self.scrape_button = ttk.Menubutton(button_frame, text="📂 Scrape Files",
-                                            width=15, style='Action.TButton')
+        self.scrape_button = ttk.Menubutton(button_frame, text="📂 SCRAPE FILES",
+                                            width=18, style='Action.TButton')
         self.scrape_button.pack(side='left', padx=5)
 
         scrape_menu = tk.Menu(self.scrape_button, tearoff=0)
@@ -256,7 +256,7 @@ class AutomationTab(Base):
         log_frame.pack(fill='both', expand=True, pady=5)
         self.log_text = tk.scrolledtext.ScrolledText(
             log_frame, wrap=tk.WORD, width=80, height=30,
-            font=UIConstants.FONTS['log'], background='black', foreground=Colors.SUCCESS
+            font=UIConstants.FONTS['log'], background='black', foreground=Colors.SUCCESS, state='disabled'
         )
         self.log_text.pack(fill='both', expand=True)
         self.app.log_manager.attach_log_widget(self.log_text)
@@ -482,9 +482,10 @@ class AutomationTab(Base):
                         self.progress_label.configure(text=f"{p:.1f}%")
                     ))
 
-                def _increment_files():
-                    self.app.root.after(0, lambda: self.files_count.config(
-                        text=str(int(self.files_count.cget("text") or 0) + 1)
+                def _set_counts(success, failed):
+                    self.app.root.after(0, lambda s=success, f=failed: (
+                        self.success_count.config(text=str(s)),
+                        self.fail_count.config(text=str(f))
                     ))
 
                 def _get_stop_flag():
@@ -493,7 +494,7 @@ class AutomationTab(Base):
 
                 ui_callbacks = {
                     "update_progress": _update_progress,
-                    "increment_files": _increment_files,
+                    "set_counts":      _set_counts, 
                     "get_stop_flag":   _get_stop_flag,
                 }
 
@@ -528,6 +529,8 @@ class AutomationTab(Base):
                     "Error", f"Scraping failed: {str(e)}"))
             finally:
                 self.app.root.after(0, self.automation_finished)
+                
+                
     # ========== Automation Methods ==========
 
     def _reset_ui_state(self):
