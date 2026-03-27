@@ -194,7 +194,7 @@
     ],
     "main_container_index": 0
   },
-  "appmagic": {
+  "AppMagic": {
       "custom_scraper_selectors": [
           {
               "role": "Main Container",
