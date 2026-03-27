@@ -13,3 +13,4 @@ scraper_helpers/__pycache__/
 scraper_pipeline/__pycache__/
 utils/__pycache__/
 *.pyc
+

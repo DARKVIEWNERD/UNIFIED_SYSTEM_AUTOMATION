@@ -130,11 +130,23 @@ def extract_platform_rows(platform_key: str, html: str, config: dict, *, max_row
         return "appfigures", [], "No usable sub-config under appfigures (no rows)"
     
     else:
-        
-        rows = scrape_custom_fallback(source_path, config.get(platform_key, {}).get("custom_scraper_selectors", []), max_rows=max_rows, main_container_index=config.get("appmagic", {}).get("main_container_index"))
-        reason = "custom fallback with no config" if not rows else "custom fallback success"    
-        return platform_key, rows, reason
+            config_ci = {k.lower(): k for k in config}
+            real_key = config_ci.get(platform_key.lower())
+            platform_cfg = config.get(real_key, {}) if real_key else {}
 
+            rows = scrape_custom_fallback(
+                source_path,
+                platform_cfg.get("custom_scraper_selectors", []),
+                max_rows=max_rows,
+                main_container_index=platform_cfg.get("main_container_index"),
+            )
+
+            reason = (
+                "custom fallback with no config"
+                if not rows
+                else f"custom fallback success ({real_key})"
+            )
+            return platform_key, rows, reason
 def build_output_rows(platform_name, extracted_rows, country_code, quarter_str, source_label):
     """
     Map platform-specific rows [publisher, app_name, app_link] into the fixed schema.
