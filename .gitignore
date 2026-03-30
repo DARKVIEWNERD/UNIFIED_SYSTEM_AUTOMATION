@@ -14,3 +14,4 @@ scraper_pipeline/__pycache__/*
 utils/__pycache__/*
 *.pyc
 working to all/
+callable.py

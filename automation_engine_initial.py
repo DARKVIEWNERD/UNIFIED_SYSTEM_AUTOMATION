@@ -527,8 +527,8 @@ def execute_universal_flow(
     ui_callbacks (optional) — same dict passed from AutomationTab:
         update_progress(pct)   — moves the progress bar (0-100)
         update_status(text)    — updates the status label
-        increment_files()      — bumps the files counter
-        set_counts(s, f)       — updates success/fail labels
+        increment_files()      — bumps the files counter (called on every saved snapshot)
+        set_counts(s, f)       — updates success/fail labels (called on every saved snapshot)
         get_stop_flag()        — returns bool
     All keys are optional; missing ones are silently ignored.
     """
@@ -543,6 +543,7 @@ def execute_universal_flow(
     _set_counts  = _cb.get("set_counts",      lambda s, f: None)
 
     success_count   = 0
+    fail_count      = 0
     total_attempted = 0
 
     base_url      = platform_config["base_url"]
@@ -671,6 +672,8 @@ def execute_universal_flow(
                 logger.warning(
                     f"      ⚠ Category step failed for [{category}] — skipping snapshot"
                 )
+                fail_count += 1
+                _set_counts(success_count, fail_count)
                 continue
 
             # Steps passed — wait for network to settle (scroll already
@@ -699,6 +702,8 @@ def execute_universal_flow(
             if success:
                 success_count += 1
                 existing_snapshots.add(task_key)
+                _inc_files()
+                _set_counts(success_count, fail_count)
                 logger.info(f"      💾 Snapshot saved: {result}")
 
                 if extract_fn is not None:
@@ -715,6 +720,8 @@ def execute_universal_flow(
                             f"      ⚠ Extract failed for {base_filename}: {_ex}"
                         )
             else:
+                fail_count += 1
+                _set_counts(success_count, fail_count)
                 logger.warning(f"      ⚠ Snapshot failed: {result}")
 
         logger.info(f"\n   ✅ Completed store: {store.upper()}")
@@ -722,6 +729,7 @@ def execute_universal_flow(
     logger.info(f"\n{'='*60}")
     logger.info(f"✅ COMPLETED COUNTRY: {country_code}")
     logger.info(f"   Successful snapshots : {success_count}/{total_attempted}")
+    logger.info(f"   Failed snapshots     : {fail_count}/{total_attempted}")
     logger.info(f"{'='*60}")
 
-    return success_count, total_attempted
+    return success_count, fail_count, total_attempted
