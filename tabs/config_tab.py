@@ -246,10 +246,6 @@ class ConfigTab(Base):
         ttk.Label(selector_frame, text="Role:",
                   font=('Arial', 9)).grid(row=1, column=0, sticky='w', padx=3, pady=3)
 
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/remote
         role_combo = ttk.Combobox(selector_frame, textvariable=self.role_var)
         role_combo['values'] = self.app.config_manager.selectors_pool['roles']
         if self.view_mode == 'custom':
@@ -461,17 +457,10 @@ class ConfigTab(Base):
             self.view_badge.config(text="Viewing: Scrape Selectors", foreground='#e67e22')
             self.add_button.config(text="➕ Add to Scrape")
 
-<<<<<<< HEAD
             # ← Show only SCRAPE roles in dropdown
             scrape_roles = self._get_scrape_roles()
             self._role_combo.config(values=scrape_roles)
             # Refresh profile dropdown
-=======
-            scrape_roles = self._get_scrape_roles()
-            self._role_combo.config(values=scrape_roles)
-            self._type_combo['values'] = SelectorTypes.get_display_names(mode='scrape')
-            self.type_var.set('')
->>>>>>> origin/remote
             existing_profiles = list(self.load_scrape_configs().keys())
             self._profile_combo['values'] = existing_profiles
 
@@ -484,19 +473,12 @@ class ConfigTab(Base):
             self.view_badge.config(text="Viewing: Custom Selectors", foreground='#27ae60')
             self.add_button.config(text="➕ Add to Custom")
 
-<<<<<<< HEAD
-                    # ← Show only CUSTOM roles in dropdown
-            custom_roles = self._get_custom_roles()
-            self._role_combo.config(values=custom_roles)
-            
-=======
             custom_roles = self._get_custom_roles()
             self._role_combo.config(values=custom_roles)
             self._type_combo['values'] = SelectorTypes.get_display_names(mode='custom')
             self.type_var.set('')
 
         # THESE NOW RUN FOR BOTH BRANCHES
->>>>>>> origin/remote
         self._refresh_fields_visibility()
         self.editing_index = -1
         self.clear_selector_inputs()
