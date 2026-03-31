@@ -292,28 +292,14 @@ def run_automation_process(ui_callbacks):
                     update_progress(completed_pairs / total_pairs * 100)
                     continue
  
-                # ── Universal engine ──────────────────────────────────────
+                 # ── Universal engine ──────────────────────────────────────
                 if web_platform["type"] == "universal":
                     if not UNIVERSAL_AVAILABLE:
                         logger.warning("⚠ Universal engine disabled")
                     else:
                         try:
-                            ui_callbacks["on_success"] = lambda: (
-                                all_successful.append((country['name'], web_platform['name'],
-                                                    "universal", "universal_category",
-                                                    web_platform["base_url"])),
-                                set_counts(len(all_successful), len(all_failed)),
-                                inc_files(),
-                            )
-                            ui_callbacks["on_fail"] = lambda reason: (
-                                all_failed.append((country['name'], web_platform['name'],
-                                                "universal", "universal_category",
-                                                web_platform["base_url"], reason)),
-                                set_counts(len(all_successful), len(all_failed)),
-                            )
-                            
                             update_status(f"Running: {country['name']} / {web_platform['name']}")
-                            execute_universal_flow(
+                            s, f, _ = execute_universal_flow(
                                 driver=driver,
                                 country_data=country,
                                 platform_config=web_platform,
@@ -324,6 +310,15 @@ def run_automation_process(ui_callbacks):
                                 ui_callbacks=ui_callbacks,
                                 used_slots=used_slots,
                             )
+                            # Sync runner-level lists with what the engine reported
+                            for _ in range(s):
+                                all_successful.append((country['name'], web_platform['name'],
+                                                       "universal", "universal_category",
+                                                       web_platform["base_url"]))
+                            for _ in range(f):
+                                all_failed.append((country['name'], web_platform['name'],
+                                                   "universal", "universal_category",
+                                                   web_platform["base_url"], "snapshot failed"))
 
                         except Exception as e:
                             logger.error(f"❌ Universal failed: {str(e)[:120]}")

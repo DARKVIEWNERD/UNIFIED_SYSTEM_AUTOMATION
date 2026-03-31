@@ -222,14 +222,14 @@ class AutomationTab(Base):
         ttk.Label(dir_frame, text=str(TARGET_DIR), foreground='blue').pack(anchor='w')
 
     def build_config_status_section(self, parent):
-        status_frame = ttk.LabelFrame(parent, text="🔄 Custom Configs (live)", padding=5)
+        status_frame = ttk.LabelFrame(parent, text="🔄 Web Platforms Configs ", padding=5)
         status_frame.pack(fill='x', pady=5)
         self._auto_config_status_frame = ttk.Frame(status_frame)
         self._auto_config_status_frame.pack(fill='x', padx=5, pady=2)
         self.refresh_config_status()
 
     def build_scrape_status_section(self, parent):
-        status_frame = ttk.LabelFrame(parent, text="🔄 Scrape Profiles (live)", padding=5)
+        status_frame = ttk.LabelFrame(parent, text="🔄 Scrape Profiles ", padding=5)
         status_frame.pack(fill='x', pady=5)
         self._auto_scrape_status_label = ttk.Label(status_frame, text="", font=('Arial', 9))
         self._auto_scrape_status_label.pack(anchor='w', padx=5, pady=2)
@@ -238,7 +238,7 @@ class AutomationTab(Base):
     def build_log_panel(self, parent):
         header_frame = ttk.Frame(parent)
         header_frame.pack(fill='x', pady=5)
-        ttk.Label(header_frame, text="📊 LIVE AUTOMATION LOGS",
+        ttk.Label(header_frame, text="LIVE AUTOMATION LOGS",
                   style='Header.TLabel') .pack()
 
         control_frame = ttk.Frame(parent)
