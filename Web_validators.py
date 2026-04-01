@@ -241,7 +241,6 @@ def is_page_unusable(driver, web_platform_type: str) -> tuple[bool, str]:
 def test_url_with_retry(driver, url, max_retries=MAX_RETRIES):
 
     for attempt in range(max_retries + 1):
-
         try:
             driver.get(url)
             utils.random_sleep(*DELAYS["page_load"])
@@ -250,30 +249,32 @@ def test_url_with_retry(driver, url, max_retries=MAX_RETRIES):
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
 
+            body_text = driver.find_element(By.TAG_NAME, "body").text.strip()
+            if len(body_text) < 50:
+                raise Exception("Page rendered but content too short — still loading")
+
             return True
 
         except Exception as e:
-
             if attempt == max_retries:
-                logger.error(f"❌ Failed to load URL after retries: {e}")
-
+                logger.error(f"❌ Failed after {max_retries} retries: {e}")
                 try:
                     logger.info("🔄 Attempting auto-refresh...")
                     driver.refresh()
                     utils.random_sleep(*DELAYS["page_load"])
-
                     WebDriverWait(driver, 15).until(
                         EC.presence_of_element_located((By.TAG_NAME, "body"))
                     )
-
-                    logger.info("✅ Auto-refresh successful.")
-                    return True
-
+                    body_text = driver.find_element(By.TAG_NAME, "body").text.strip()
+                    if len(body_text) >= 50:
+                        logger.info("✅ Auto-refresh successful.")
+                        return True
                 except Exception as refresh_error:
                     logger.error(f"❌ Auto-refresh failed: {refresh_error}")
-                    raise e
 
-            logger.warning(f"Retrying URL load ({attempt+1})...")
+                return False  # ← stops the retrying
+
+            logger.warning(f"⚠️ Retrying ({attempt + 1}/{max_retries}): {e}")
             utils.random_sleep(*DELAYS["retry"])
 
     return False
