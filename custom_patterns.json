@@ -110,7 +110,7 @@
   {
     "name": "apptweak",
     "base_url": "https://www.apptweak.com/en/free-tools/app-store-top-charts",
-    "active": false,
+    "active": true,
     "version": "1.0",
     "description": "list of top apps",
     "custom_selectors": [
@@ -158,7 +158,7 @@
     "metadata": {
       "created_at": "2026-02-06 13:01:51",
       "total_selectors": 5,
-      "updated_at": "2026-03-30 16:13:24",
+      "updated_at": "2026-04-01 11:48:54",
       "status_updated_at": "2026-02-19 18:52:15",
       "total_scraper_selectors": 0
     }
@@ -166,7 +166,7 @@
   {
     "name": "sensorTower",
     "base_url": "https://app.sensortower.com/top-charts",
-    "active": false,
+    "active": true,
     "version": "1.0",
     "description": "",
     "custom_selectors": [
@@ -208,7 +208,7 @@
     "metadata": {
       "created_at": "2026-02-03 09:21:29",
       "total_selectors": 4,
-      "updated_at": "2026-03-26 10:50:05",
+      "updated_at": "2026-04-01 11:48:57",
       "status_updated_at": "2026-03-11 16:34:00",
       "total_scraper_selectors": 0
     }
@@ -216,7 +216,7 @@
   {
     "name": "Appfigures",
     "base_url": "https://appfigures.com/top-apps/",
-    "active": false,
+    "active": true,
     "version": "1.0",
     "description": "list of top apps",
     "custom_selectors": [
@@ -243,7 +243,7 @@
       "created_at": "2026-02-06 13:01:51",
       "total_selectors": 2,
       "status_updated_at": "2026-03-04 09:47:42",
-      "updated_at": "2026-04-01 08:07:29",
+      "updated_at": "2026-04-01 11:49:00",
       "total_scraper_selectors": 0
     }
   },

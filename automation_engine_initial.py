@@ -511,7 +511,6 @@ def run_platform(driver, platform_config, country=None, category=None,
 # ==========================================
 # MAIN ENTRY POINT
 # ==========================================
-
 def execute_universal_flow(
     driver,
     country_data,
@@ -531,11 +530,19 @@ def execute_universal_flow(
         set_counts(s, f)       — updates success/fail labels (called on every saved snapshot)
         get_stop_flag()        — returns bool
     All keys are optional; missing ones are silently ignored.
+
+    PATCH NOTES:
+    - Setup phase now gates the category phase: if any setup step fails,
+      the category phase is skipped entirely to prevent wrong-country snapshots.
+    - Failed categories are collected and retried once at the end of each store run
+      after a fresh page initialization and setup phase.
+    - Snapshots saved after a failed setup are never written — keys are not
+      added to existing_snapshots so the run can be retried cleanly.
     """
     from utils.utils import clean_category_name, get_next_sequence_number
     from file_handlers import create_base_filename, save_mhtml_snapshot
 
-    # Resolve callbacks — fall back to no-ops so nothing below needs to guard against None
+    # ── Resolve callbacks ─────────────────────────────────────────────────────
     _cb          = ui_callbacks or {}
     _update_prog = _cb.get("update_progress", lambda pct: None)
     _update_stat = _cb.get("update_status",   lambda txt: None)
@@ -616,46 +623,83 @@ def execute_universal_flow(
             auto_detect_and_select_platform(driver, store)
 
         # ── Setup phase (once per store) ──────────────────────────────────
+        # PATCH: track setup results — if any step fails, abort the category
+        # phase entirely to prevent snapshots being saved under the wrong country.
         logger.info(f"\n      ⚙️ SETUP PHASE")
-        for step in platform_config.get("custom_selectors", []):
-            if step.get("param") != "category":
-                execute_step(
-                    driver, step,
-                    country=country_name, platform=store,
-                    platform_name=platform_name
-                )
 
-        # Wait for setup interactions to settle — no scroll here,
-        # scroll only fires after successful category steps
+        setup_steps = [
+            s for s in platform_config.get("custom_selectors", [])
+            if s.get("param") != "category"
+        ]
+
+        setup_failed = False
+        failed_setup_role = None
+
+        for step in setup_steps:
+            if _is_stop_requested():
+                break
+            ok = execute_step(
+                driver, step,
+                country=country_name, platform=store,
+                platform_name=platform_name
+            )
+            if not ok:
+                failed_setup_role = step.get("role", "unknown")
+                logger.error(
+                    f"❌ Setup step failed: '{failed_setup_role}' — "
+                    f"aborting category phase for "
+                    f"{store.upper()} / {country_name}. "
+                    f"No snapshots will be saved to prevent wrong-country data."
+                )
+                setup_failed = True
+                break
+
+        if setup_failed:
+            # Count all missing categories as failed — they were never attempted
+            fail_count      += len(missing_categories)
+            total_attempted += len(missing_categories)
+            _set_counts(success_count, fail_count)
+            logger.warning(
+                f"      ⛔ Skipping all {len(missing_categories)} categories "
+                f"for {store.upper()} / {country_name} "
+                f"due to setup failure on '{failed_setup_role}'."
+            )
+            continue  # move to next store — do NOT enter category phase
+
+        # Wait for setup interactions to settle
         wait_for_stable(driver, extra_wait=1.0)
 
         # ── Category phase ────────────────────────────────────────────────
         logger.info(f"\n      🔄 CATEGORY PHASE")
 
-        for cat_idx, category in enumerate(missing_categories, start=1):
+        # PATCH: collect categories that fail so we can retry them once
+        failed_categories = []
 
-            if _is_stop_requested():
-                logger.warning("⏹️ Stop requested — aborting category loop.")
-                break
+        def _run_category(category, cat_idx, total):
+            """
+            Inner helper — runs all category steps for one category,
+            saves the snapshot, and returns (success: bool).
+            Extracted so it can be called both in the main loop and retry loop.
+            """
+            nonlocal success_count, fail_count, total_attempted
 
             safe_category = clean_category_name(category).lower()
             task_key = (country_code, platform_name.lower(), store.lower(), safe_category)
-            total_attempted += 1
 
             print_progress(
                 cat_idx,
-                len(missing_categories),
+                total,
                 prefix=f"      {platform_name} | {store.upper()} | {category}"
             )
             logger.info(
-                f"      🔄 [{cat_idx}/{len(missing_categories)}] Category: {category}"
+                f"      🔄 [{cat_idx}/{total}] Category: {category}"
             )
-            # ── Run category steps then save ─────────────────────────────
 
             category_steps = [
                 s for s in platform_config.get("custom_selectors", [])
-                if s.get("param") == "category" or s.get("repeat")==True
+                if s.get("param") == "category" or s.get("repeat") == True
             ]
+
             results = []
             for step in category_steps:
                 ok = execute_step(
@@ -672,12 +716,9 @@ def execute_universal_flow(
                 logger.warning(
                     f"      ⚠ Category step failed for [{category}] — skipping snapshot"
                 )
-                fail_count += 1
-                _set_counts(success_count, fail_count)
-                continue
+                return False
 
-            # Steps passed — wait for network to settle (scroll already
-            # happened inside execute_step after the last category step)
+            # Steps passed — wait for network to settle
             wait_for_stable(driver, extra_wait=0.5)
 
             # ── Save snapshot ─────────────────────────────────────────
@@ -700,7 +741,6 @@ def execute_universal_flow(
             )
 
             if success:
-                success_count += 1
                 existing_snapshots.add(task_key)
                 _inc_files()
                 _set_counts(success_count, fail_count)
@@ -719,10 +759,81 @@ def execute_universal_flow(
                         logger.warning(
                             f"      ⚠ Extract failed for {base_filename}: {_ex}"
                         )
+                return True
+            else:
+                logger.warning(f"      ⚠ Snapshot failed: {result}")
+                return False
+
+        # ── Main category loop ────────────────────────────────────────────
+        for cat_idx, category in enumerate(missing_categories, start=1):
+
+            if _is_stop_requested():
+                logger.warning("⏹️ Stop requested — aborting category loop.")
+                break
+
+            total_attempted += 1
+            ok = _run_category(category, cat_idx, len(missing_categories))
+
+            if ok:
+                success_count += 1
             else:
                 fail_count += 1
-                _set_counts(success_count, fail_count)
-                logger.warning(f"      ⚠ Snapshot failed: {result}")
+                failed_categories.append(category)
+
+            _set_counts(success_count, fail_count)
+
+        # ── Retry loop (one pass for failed categories) ───────────────────
+        if failed_categories and not _is_stop_requested():
+            logger.info(
+                f"\n      🔁 RETRY PHASE — "
+                f"{len(failed_categories)} failed categories"
+            )
+
+            # Re-initialize and re-run setup before retrying
+            safe_initialize_page(driver, base_url, platform_name=platform_name)
+
+            if not json_controls_platform:
+                auto_detect_and_select_platform(driver, store)
+
+            retry_setup_failed = False
+            for step in setup_steps:
+                if _is_stop_requested():
+                    break
+                ok = execute_step(
+                    driver, step,
+                    country=country_name, platform=store,
+                    platform_name=platform_name
+                )
+                if not ok:
+                    logger.error(
+                        f"❌ Retry setup also failed on '{step.get('role')}' — "
+                        f"skipping retry phase."
+                    )
+                    retry_setup_failed = True
+                    break
+
+            if not retry_setup_failed:
+                wait_for_stable(driver, extra_wait=1.0)
+
+                for cat_idx, category in enumerate(failed_categories, start=1):
+                    if _is_stop_requested():
+                        break
+
+                    logger.info(
+                        f"      🔁 Retry [{cat_idx}/{len(failed_categories)}]: "
+                        f"{category}"
+                    )
+                    ok = _run_category(
+                        category, cat_idx, len(failed_categories)
+                    )
+
+                    if ok:
+                        # Upgrade from fail to success
+                        success_count += 1
+                        fail_count    -= 1
+                    # if still failing, leave fail_count as-is
+
+                    _set_counts(success_count, fail_count)
 
         logger.info(f"\n   ✅ Completed store: {store.upper()}")
 
