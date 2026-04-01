@@ -28,7 +28,7 @@ COUNTRIES = [
 
     {"name": "South Africa",        "code": "ZA", "slug_name": "South Africa",            "number": "04"},
     {"name": "Egypt",               "code": "EG", "slug_name": "Egypt",                   "number": "05"},
-    {"name": "United Arab Emirate", "code": "AE", "slug_name": "United Arab Emirates",    "number": "06"},
+    {"name": "United Arab Emirates", "code": "AE", "slug_name": "United Arab Emirates",    "number": "06"},
 
     {"name": "Saudi Arabia",        "code": "SA", "slug_name": "Saudi Arabia",            "number": "07"},
     {"name": "Brazil",              "code": "BR", "slug_name": "Brazil",                  "number": "08"},
