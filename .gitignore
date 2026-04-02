@@ -3,7 +3,7 @@ logs/
 venv/
 desktop.ini
 output/
-_pycache_/*
+__pycache__/*
 tabs/__pycache__/*
 managers/__pycache__/*
 models/__pycache__/*
