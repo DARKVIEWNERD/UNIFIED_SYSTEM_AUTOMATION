@@ -24,28 +24,44 @@ def is_human_verification(driver) -> bool:
         body = driver.find_element(By.TAG_NAME, "body").text.lower()
         url = driver.current_url.lower()
 
-        triggers = [
+        # ── URL-based triggers (very reliable) ───────────────────────────
+        url_triggers = [
+            "/challenge",
+            "/captcha",
+        ]
+        for trigger in url_triggers:
+            if trigger in url:
+                return True
+
+        # ── Title-based triggers ──────────────────────────────────────────
+        title_triggers = [
             "captcha",
             "verify you are human",
             "human verification",
-            "checking your browser",
-            "cloudflare",
             "attention required",
-            "unusual traffic",
-            "/challenge",
-            "/captcha"
+            "just a moment",  # ← Cloudflare challenge page title
         ]
+        for trigger in title_triggers:
+            if trigger in title:
+                return True
 
-        for trigger in triggers:
-            if trigger in title or trigger in body or trigger in url:
+        # ── Body-based triggers (strict — avoid false positives) ──────────
+        body_triggers = [
+            "verify you are human",
+            "checking your browser",
+            "unusual traffic",
+            "please complete the security check",
+            "prove you are human",
+        ]
+        for trigger in body_triggers:
+            if trigger in body:
                 return True
 
         return False
 
     except Exception:
         return False
-
-
+    
 def wait_for_manual_verification(driver, timeout=300):
     """Wait for user to manually solve CAPTCHA"""
     logger.warning("⚠ Human verification detected.")
