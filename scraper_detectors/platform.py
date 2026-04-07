@@ -12,10 +12,6 @@ def detect_platform_from_filename(path_or_label: str) -> str:
     if "appfollow" in base or "app_follow" in base or "app-follow" in base:
         return "appfollow"
     # Customs
-    if "appfigures" in base or "appfigure" in base:
-        return "appfigures"
-    if "apptweak" in base or "app_tweak" in base or "app-tweak" in base:
-        return "apptweak"
-    if "AppMagic" in base or "app_magic" in base or "app-magic" in base:
-        return "appmagic"
-    return ""
+    else:
+        return base.split("_")[2]
+    

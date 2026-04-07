@@ -331,7 +331,12 @@ def handle_list(driver, by, selector, value, platform_name=""):
     for el in elements:
         try:
             text = el.text.strip().lower()
-            if text == value.lower() or any(alias in text for alias in aliases):
+            
+            # Skip empty or placeholder elements
+            if not text or len(text) > 50:          # ← ADD THIS
+                continue
+                
+            if text == value.lower() or any(alias == text for alias in aliases):  # ← exact match only
                 driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
                 time.sleep(0.5)
                 click(driver, el, platform_name=platform_name)
@@ -363,10 +368,11 @@ def execute_step(driver, step, country=None, category=None, platform=None,
     selector     = step.get("selector") or step.get("value")
     element_type = step.get("type", "").lower()
     param_type   = step.get("param")
+    is_repeat    = step.get("repeat", False) 
 
     # Derive is_category_step from param_type if caller didn't specify
     if not is_category_step:
-        is_category_step = (param_type == "category")
+        is_category_step = (param_type == "category"or is_repeat)
 
     if mode == "setup" and param_type == "category":
         return True
@@ -377,7 +383,7 @@ def execute_step(driver, step, country=None, category=None, platform=None,
         return False
 
     param_map   = {"country": country, "category": category, "platform": platform}
-    input_value = param_map.get(param_type)
+    input_value = None if is_repeat else param_map.get(param_type) 
     by, normalized = resolve_selector(selector)
 
     p_name  = (platform_name or "").strip().lower()
@@ -521,8 +527,8 @@ def execute_universal_flow(
     ui_callbacks (optional) — same dict passed from AutomationTab:
         update_progress(pct)   — moves the progress bar (0-100)
         update_status(text)    — updates the status label
-        increment_files()      — bumps the files counter
-        set_counts(s, f)       — updates success/fail labels
+        increment_files()      — bumps the files counter (called on every saved snapshot)
+        set_counts(s, f)       — updates success/fail labels (called on every saved snapshot)
         get_stop_flag()        — returns bool
     All keys are optional; missing ones are silently ignored.
     """
@@ -537,6 +543,7 @@ def execute_universal_flow(
     _set_counts  = _cb.get("set_counts",      lambda s, f: None)
 
     success_count   = 0
+    fail_count      = 0
     total_attempted = 0
 
     base_url      = platform_config["base_url"]
@@ -647,7 +654,7 @@ def execute_universal_flow(
 
             category_steps = [
                 s for s in platform_config.get("custom_selectors", [])
-                if s.get("param") == "category"
+                if s.get("param") == "category" or s.get("repeat")==True
             ]
             results = []
             for step in category_steps:
@@ -665,6 +672,8 @@ def execute_universal_flow(
                 logger.warning(
                     f"      ⚠ Category step failed for [{category}] — skipping snapshot"
                 )
+                fail_count += 1
+                _set_counts(success_count, fail_count)
                 continue
 
             # Steps passed — wait for network to settle (scroll already
@@ -693,6 +702,8 @@ def execute_universal_flow(
             if success:
                 success_count += 1
                 existing_snapshots.add(task_key)
+                _inc_files()
+                _set_counts(success_count, fail_count)
                 logger.info(f"      💾 Snapshot saved: {result}")
 
                 if extract_fn is not None:
@@ -709,6 +720,8 @@ def execute_universal_flow(
                             f"      ⚠ Extract failed for {base_filename}: {_ex}"
                         )
             else:
+                fail_count += 1
+                _set_counts(success_count, fail_count)
                 logger.warning(f"      ⚠ Snapshot failed: {result}")
 
         logger.info(f"\n   ✅ Completed store: {store.upper()}")
@@ -716,6 +729,7 @@ def execute_universal_flow(
     logger.info(f"\n{'='*60}")
     logger.info(f"✅ COMPLETED COUNTRY: {country_code}")
     logger.info(f"   Successful snapshots : {success_count}/{total_attempted}")
+    logger.info(f"   Failed snapshots     : {fail_count}/{total_attempted}")
     logger.info(f"{'='*60}")
 
-    return success_count, total_attempted
+    return success_count, fail_count, total_attempted

@@ -3,21 +3,22 @@
 
 class SelectorTypes:
     """Types of selectors"""
-    TEXT = 'text'
-    BUTTON = 'button'
-    LINK = 'link'
-    DROPDOWN = 'dropdown'
-    CHECKBOX = 'checkbox'
-    INPUT = 'input'
-    MULTIPLE = 'multiple'
-    CONTAINER = 'container'
+
+ 
     
-    ALL = [TEXT, BUTTON, LINK, DROPDOWN, CHECKBOX, INPUT, MULTIPLE, CONTAINER]
+    Custom = ["input","select","dropdown","list","click"]
+    Scrape = ["id","class"]
+
     
     @classmethod
-    def get_display_names(cls):
+    def get_display_names(cls,mode):
+
         """Get display names for combobox"""
-        return cls.ALL
+        if mode=='custom':
+            return cls.Custom
+        else:
+            return cls.Scrape
+
 
 
 class ElementTags:
