@@ -13,8 +13,8 @@ scraper_helpers/__pycache__/*
 scraper_pipeline/__pycache__/*
 utils/__pycache__/*
 *.pyc
-working to all/
+working to all/*
 callable.py
 *.spec  
-build/
-dist/
+build/*
+dist/*
