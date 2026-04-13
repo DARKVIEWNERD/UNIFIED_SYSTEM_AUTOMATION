@@ -22,12 +22,6 @@ BASE_DIR = get_base_dir()
 # ─────────────────────────────────────────────────────────────────────────────
 
 COUNTRIES = [
-    {"name": "United States",       "code": "US", "slug_name": "United States",          "number": "01"},
-    {"name": "Canada",              "code": "CA", "slug_name": "Canada",                  "number": "02"},
-    {"name": "Australia",           "code": "AU", "slug_name": "Australia",               "number": "03"},
-
-    {"name": "South Africa",        "code": "ZA", "slug_name": "South Africa",            "number": "04"},
-    {"name": "Egypt",               "code": "EG", "slug_name": "Egypt",                   "number": "05"},
     {"name": "United Arab Emirates", "code": "AE", "slug_name": "United Arab Emirates",    "number": "06"},
 
     {"name": "Saudi Arabia",        "code": "SA", "slug_name": "Saudi Arabia",            "number": "07"},

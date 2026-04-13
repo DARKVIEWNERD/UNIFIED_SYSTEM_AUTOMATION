@@ -11,6 +11,8 @@ def detect_platform_from_filename(path_or_label: str) -> str:
         return "similarweb"
     if "appfollow" in base or "app_follow" in base or "app-follow" in base:
         return "appfollow"
+    if "apptweak" in base or "app_tweak" in base or "app-tweak" in base:
+        return "apptweak"
     # Customs
     else:
         return base.split("_")[2]

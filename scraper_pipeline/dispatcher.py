@@ -41,6 +41,20 @@ def extract_platform_rows(platform_key: str, html: str, config: dict, *, max_row
             rows, reason = extract_similarweb(html, sw_cfg, max_rows=max_rows)
             return "similarweb", rows, reason
         return "similarweb", [], "No config for similarweb"
+    
+    # APPTWEAK
+    if pk in ("apptweak", "app_tweak", "app-tweak"):
+        at_key = None
+        for k in ("apptweak", "AppTweak"):
+            if k in config and isinstance(config[k], dict):
+                at_key = k; break
+        if not at_key:
+            return "apptweak", [], "No apptweak config found"
+        at_cfg = config[at_key]
+        if "custom_scraper_selectors" in at_cfg:
+            rows, reason = extract_custom_platform(html, at_cfg, max_rows=max_rows)
+            return "apptweak", rows, reason
+        return "apptweak", [], "No custom_scraper_selectors for apptweak"
 
     # APPFOLLOW
     if pk == "appfollow":
