@@ -1,7 +1,15 @@
 # models/constants.py
 HEADERS = [
-    "Quarter", "Country", "Android or Apple", "Rank", "Publisher",
-    "App Name", "App Link", "Source", "Platform","App Icon"
+    "Quarter",              #1
+    "Country",              #2
+    "Android or Apple",     #3
+    "Rank",                 #4
+    "Publisher",            #5
+    "App Name",             #6
+    "App Link",             #7
+    "Source",               #8
+    "Platform",             #9
+    "App Icon"              #10
 ]
 
 
