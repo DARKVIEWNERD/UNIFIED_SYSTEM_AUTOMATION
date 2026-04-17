@@ -29,7 +29,6 @@ def append_rows(ws, rows):
         for c_idx, val in enumerate(row, start=1):
             ws.cell(row=r_idx, column=c_idx, value=val)
 
-
 # ============================================================
 # WORKBOOK PREPARATION
 # ============================================================
@@ -69,12 +68,12 @@ def prepare_workbook_for_append(
         if ws0.max_row <= 1 and ws0.max_column <= 1:
             wb.remove(ws0)
 
-    # Icon column width (J)
+    # Icon column width 
     icon_col_letter = get_column_letter(len(headers))
     for ws in ws_map.values():
         ws.column_dimensions[icon_col_letter].width = 11
 
-    # Preview column width (K)
+    # Preview column width 
     preview_col_letter = get_column_letter(len(headers) + 1)
     for ws in ws_map.values():
         ws.column_dimensions[preview_col_letter].width = 14
@@ -101,12 +100,9 @@ def append_rows_to_category_sheets(
         end_color="FFFF00",
         fill_type="solid"
     )
-
-    icon_col_idx = icon_path_row_value          # This is the column where the icon URL or image will be placed (e.g. K)
-    icon_col_letter = get_column_letter(icon_col_idx)
-    # PREVIEW COLUMN IS WHERE THE ICON IMG WILL BE LOADED
-    preview_col_idx = icon_preview_row_value
-    preview_col_letter = get_column_letter(preview_col_idx)
+    
+    icon_col_letter = get_column_letter(icon_path_row_value)
+    preview_col_letter = get_column_letter(icon_preview_row_value)
 
     def _is_http_url(s: str) -> bool:
         return bool(s and s.lower().startswith(("http://", "https://")))
@@ -140,12 +136,12 @@ def append_rows_to_category_sheets(
         for j, val in enumerate(row, start=1):
             cell = ws.cell(row=i, column=j, value=val)
 
-            # App Link (col 9)
+            # App Link 
             if j == app_link_row_value and isinstance(val, str) and _is_http_url(val):
                 cell.hyperlink = val
                 cell.style = "Hyperlink"
 
-            # Source (col 10)
+            # Source 
             if j == source_row_value and isinstance(val, str) and val.strip():
                 url, display = _to_hyperlink(val)
                 if url:
@@ -167,7 +163,7 @@ def append_rows_to_category_sheets(
 
             # URL → hyperlink
             if kind == "url" and value:
-                cell = ws.cell(row=i, column=icon_col_idx, value=value)
+                cell = ws.cell(row=i, column=icon_path_row_value, value=value)
                 cell.hyperlink = value
                 cell.style = "Hyperlink"
 
@@ -191,7 +187,7 @@ def append_rows_to_category_sheets(
         try:
             ws.cell(
                 row=i,
-                column=preview_col_idx,
+                column=icon_preview_row_value,
                 value=f"=IMAGE({icon_col_letter}{i})"
             )
         except Exception:
@@ -206,5 +202,5 @@ def append_rows_to_category_sheets(
             rank_int = None
 
         if rank_int == 1:
-            for col_idx in range(1, preview_col_idx + 1):
+            for col_idx in range(1, icon_preview_row_value + 1):
                 ws.cell(row=i, column=col_idx).fill = yellow_fill
