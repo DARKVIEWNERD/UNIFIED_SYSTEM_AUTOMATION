@@ -95,8 +95,8 @@ def append_rows_to_category_sheets(
 
     icon_col_idx = len(HEADERS)          # J
     icon_col_letter = get_column_letter(icon_col_idx)
-
-    preview_col_idx = icon_col_idx + 1   # ✅ K
+    # PREVIEW COLUMN IS WHERE THE ICON IMG WILL BE LOADED
+    preview_col_idx = 8
     preview_col_letter = get_column_letter(preview_col_idx)
 
     def _is_http_url(s: str) -> bool:
@@ -131,13 +131,13 @@ def append_rows_to_category_sheets(
         for j, val in enumerate(row, start=1):
             cell = ws.cell(row=i, column=j, value=val)
 
-            # App Link (col 7)
-            if j == 7 and isinstance(val, str) and _is_http_url(val):
+            # App Link (col 9)
+            if j == 9 and isinstance(val, str) and _is_http_url(val):
                 cell.hyperlink = val
                 cell.style = "Hyperlink"
 
-            # Source (col 8)
-            if j == 8 and isinstance(val, str) and val.strip():
+            # Source (col 10)
+            if j == 10 and isinstance(val, str) and val.strip():
                 url, display = _to_hyperlink(val)
                 if url:
                     cell.value = display
@@ -148,8 +148,8 @@ def append_rows_to_category_sheets(
         # ICON: URL FIRST, EMBED FALLBACK
         # ------------------------------
         if callable(icon_lookup):
-            app_name = row[5] if len(row) > 5 else ""
-            app_link = row[6] if len(row) > 6 else ""
+            app_name = row[6] if len(row) > 6 else ""
+            app_link = row[8] if len(row) > 8 else ""
 
             try:
                 kind, value = icon_lookup(app_link, app_name)
@@ -192,7 +192,7 @@ def append_rows_to_category_sheets(
         # Highlight Rank == 1
         # ------------------------------
         try:
-            rank_int = int(str(row[3]).strip())
+            rank_int = int(str(row[4]).strip())
         except Exception:
             rank_int = None
 

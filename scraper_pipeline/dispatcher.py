@@ -178,13 +178,14 @@ def build_output_rows(platform_name, extracted_rows, country_code, quarter_str, 
         row = [
             quarter_str,       # 1 Quarter
             country_code,      # 2 Country
+            platform_name,     # 9 Platform
             store,             # 3 Android or Apple
             idx,               # 4 Rank
             publisher,         # 5 Publisher
             app_name,          # 6 App Name
+            "",                # 8 Icon img URL (to be filled by icon lookup or left blank)
             app_link,          # 7 App Link
             source_path,       # 8 Source
-            platform_name      # 9 Platform
         ]
         # Use content-based classification to decide sheet name later
         cat = classify_category_by_content(row)
