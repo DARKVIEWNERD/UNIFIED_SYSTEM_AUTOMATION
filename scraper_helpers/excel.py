@@ -100,7 +100,7 @@ def append_rows_to_category_sheets(
         end_color="FFFF00",
         fill_type="solid"
     )
-    
+
     icon_col_letter = get_column_letter(icon_path_row_value)
     preview_col_letter = get_column_letter(icon_preview_row_value)
 
@@ -202,5 +202,6 @@ def append_rows_to_category_sheets(
             rank_int = None
 
         if rank_int == 1:
-            for col_idx in range(1, icon_preview_row_value + 1):
+            last_col = len(HEADERS)
+            for col_idx in range(1, last_col + 1):
                 ws.cell(row=i, column=col_idx).fill = yellow_fill
