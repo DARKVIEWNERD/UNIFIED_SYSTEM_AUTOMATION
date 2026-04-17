@@ -6,6 +6,15 @@ from openpyxl.utils import get_column_letter
 
 from scraper_models.constants import HEADERS
 
+# ============================================================
+# FOR FUTURE MODIFICATIONS OF HEADERS OR COLUMNS
+# ============================================================
+rank_row_value = 5
+app_name_row_value = 7
+icon_preview_row_value = 8
+app_link_row_value = 9
+source_row_value = 10
+icon_path_row_value = 11
 
 # ============================================================
 # TEXT-ONLY APPENDER (NO ICONS HERE)
@@ -93,10 +102,10 @@ def append_rows_to_category_sheets(
         fill_type="solid"
     )
 
-    icon_col_idx = len(HEADERS)          # J
+    icon_col_idx = icon_path_row_value          # This is the column where the icon URL or image will be placed (e.g. K)
     icon_col_letter = get_column_letter(icon_col_idx)
     # PREVIEW COLUMN IS WHERE THE ICON IMG WILL BE LOADED
-    preview_col_idx = 8
+    preview_col_idx = icon_preview_row_value
     preview_col_letter = get_column_letter(preview_col_idx)
 
     def _is_http_url(s: str) -> bool:
@@ -132,12 +141,12 @@ def append_rows_to_category_sheets(
             cell = ws.cell(row=i, column=j, value=val)
 
             # App Link (col 9)
-            if j == 9 and isinstance(val, str) and _is_http_url(val):
+            if j == app_link_row_value and isinstance(val, str) and _is_http_url(val):
                 cell.hyperlink = val
                 cell.style = "Hyperlink"
 
             # Source (col 10)
-            if j == 10 and isinstance(val, str) and val.strip():
+            if j == source_row_value and isinstance(val, str) and val.strip():
                 url, display = _to_hyperlink(val)
                 if url:
                     cell.value = display
@@ -148,8 +157,8 @@ def append_rows_to_category_sheets(
         # ICON: URL FIRST, EMBED FALLBACK
         # ------------------------------
         if callable(icon_lookup):
-            app_name = row[6] if len(row) > 6 else ""
-            app_link = row[8] if len(row) > 8 else ""
+            app_name = row[app_name_row_value - 1] if len(row) >= (app_name_row_value - 1) else ""
+            app_link = row[app_link_row_value - 1] if len(row) >= (app_link_row_value - 1) else ""
 
             try:
                 kind, value = icon_lookup(app_link, app_name)
@@ -192,7 +201,7 @@ def append_rows_to_category_sheets(
         # Highlight Rank == 1
         # ------------------------------
         try:
-            rank_int = int(str(row[4]).strip())
+            rank_int = int(str(row[rank_row_value - 1]).strip())
         except Exception:
             rank_int = None
 
